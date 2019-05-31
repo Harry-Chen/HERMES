@@ -7,7 +7,7 @@ This project is an assignment of `Basics of Stroage Technology` course, Spring 2
 ## Compilation & Running
 
 ```bash
-mkdir build
+mkdir build && cd build
 cmake ..
 cmake --build .
 ```
