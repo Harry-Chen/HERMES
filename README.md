@@ -25,8 +25,7 @@ To be done
 `HERMES` use a key-value store as its backend. All entries in the file system are mapped to a key-value pair in the store with the following scheme:
 
 * `/path/to/directory` -> `D/path/to/directory`, which contains metadata of the directory as long as a list of its contents (owner, permission, create time, etc.)
-* `/path/to/file` -> `/path/to/file`, which contains the content of the file (with no metadata)
-* `/path/to/soft_link` -> `L/path/to/soft_link`, which contains the target of the link
+* `/path/to/file` -> `/path/to/file`, which contains the content of the file (with no metadata), or destinations of symbolic links
 
 Note that some types of file, including hard link, device, or pipe are not supported.
 
