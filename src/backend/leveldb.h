@@ -7,6 +7,8 @@
 #include <leveldb/db.h>
 #include <optional>
 #include <string_view>
+#include <memory>
+#include <iostream>
 
 namespace hermes::backend {
   class LDB {
@@ -27,7 +29,33 @@ namespace hermes::backend {
        * F: (const std::string_view &path, const hermes::metadata &metadata) -> void
        */
       template<typename F>
-      void iterate_director(const std::string_view &path, F accessor);
+      inline
+      void iterate_directory(const std::string_view &path, F accessor) {
+        std::unique_ptr<leveldb::Iterator> it(this->metadata->NewIterator(leveldb::ReadOptions()));
+        const leveldb::Slice pathSlice(path.data(), path.length());
+        it->Seek(pathSlice); // Ignores self
+        if(path != "/")
+          it->Next();
+
+        for(; it->Valid(); it->Next()) {
+          std::cout<<">> At: "<<it->key().ToString()<<std::endl;
+
+          auto key = it->key();
+          std::string_view view(key.data(), key.size());
+
+          if(view.size() <= path.size() || view.compare(0, path.size(), path) != 0)
+            break;
+
+          if(path != "/" && view[path.size()] != '/')
+            break;
+
+          if(view.find_first_of('/', path.size() + 1) != std::string::npos)
+            continue;
+
+          accessor(view, *reinterpret_cast<const hermes::metadata *>(it->value().data()));
+        }
+        return;
+      }
 
     private:
       leveldb::DB *metadata;

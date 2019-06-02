@@ -85,7 +85,6 @@ namespace hermes::impl {
     } else if(!resp->is_file()) {
       return -EISDIR;
     } else {
-      std::cout<<">>>>> SIZE IS: "<<resp->size<<std::endl;
       return 0;
     }
   }
@@ -96,6 +95,7 @@ namespace hermes::impl {
     auto resp = ctx->backend->fetch_content(path);
 
     // TODO: upate atim
+    // TODO: handle dir & symlink
 
     if(!resp) {
       return -ENOENT;
@@ -141,6 +141,8 @@ namespace hermes::impl {
   int create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     auto fctx = fuse_get_context();
     auto ctx = static_cast<hermes::impl::context *>(fctx->private_data);
+    if(ctx->backend->fetch_metadata(path))
+      return -EEXIST;
 
     struct timespec now;
     clock_getres(CLOCK_REALTIME, &now);

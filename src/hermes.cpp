@@ -11,12 +11,14 @@
 
 fuse_operations hermes_oper = {
   .getattr = hermes::impl::getattr,
+  .mkdir = hermes::impl::mkdir,
   .chmod = hermes::impl::chmod,
   .chown = hermes::impl::chown,
   .truncate = hermes::impl::truncate,
   .open = hermes::impl::open,
   .read = hermes::impl::read,
   .write = hermes::impl::write,
+  .readdir = hermes::impl::readdir,
   .init = hermes::impl::init,
   .destroy = hermes::impl::destroy,
   .create = hermes::impl::create,

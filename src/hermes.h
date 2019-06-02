@@ -115,6 +115,7 @@ namespace hermes {
     void* init(struct fuse_conn_info *conn);
     void destroy(void *ctx);
     int getattr(const char *path, struct stat *stbuf);
+    int mkdir(const char *path, mode_t mode);
     int chmod(const char *path, mode_t mode);
     int chown(const char *path, uid_t uid, gid_t gid);
     int truncate(const char *path, off_t len);
@@ -123,6 +124,7 @@ namespace hermes {
     int write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi);
     int create(const char *path, mode_t mode, struct fuse_file_info *fi);
     int utimens(const char *path, const struct timespec tv[2]);
+    int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi);
   }
 }
 

@@ -81,10 +81,4 @@ namespace hermes::backend {
     else
       return {}; // TODO: handle other types of errors
   }
-
-  template<typename F>
-  void LDB::iterate_director(const std::string_view &path, F accessor) {
-    // TODO: INPLEMENT ME
-    return;
-  }
 }
