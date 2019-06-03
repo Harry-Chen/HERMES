@@ -104,9 +104,7 @@ namespace hermes::impl {
     } else if(mtresp->size == 0) {
       return 0;
     } else {
-      auto resp = ctx->backend->fetch_content(mtresp->id, offset, size);
-      assert(resp.size() == size);
-      resp.copy(buf, std::string::npos);
+      ctx->backend->fetch_content(mtresp->id, offset, size, buf);
       return size;
     }
   }

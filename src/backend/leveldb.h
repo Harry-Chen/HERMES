@@ -56,7 +56,7 @@ namespace hermes::backend {
        * For all content chunks that are not found, we assume they are holes in files.
        * So this call will always return something.
        */
-      std::string fetch_content(uint64_t id, size_t offset, size_t len);
+      void fetch_content(uint64_t id, size_t offset, size_t len, char *buf);
 
       /**
        * Now we do not need to use remove_content to rename files. So we are returning a single result here
