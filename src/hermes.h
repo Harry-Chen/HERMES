@@ -54,6 +54,10 @@ namespace hermes {
     // st_rdev is always 0, as we do not have device files either
     // st_blksize is also ignored
     // st_blocks is always ceil(size / 512) for now, as we do not support holes yet
+    
+    // Internal file id
+    // Only used for file I/O. Always 0 for directories
+    uint64_t id;
 
     // mode
     mode_t mode;

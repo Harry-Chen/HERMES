@@ -6,6 +6,7 @@
 #include <errno.h>
 
 #include <iostream>
+#include <cassert>
 
 namespace hermes::impl {
   int getattr(const char *path, struct stat *stbuf) {
@@ -85,6 +86,7 @@ namespace hermes::impl {
     } else if(!resp->is_file()) {
       return -EISDIR;
     } else {
+      fi->fh = resp->id;
       return 0;
     }
   }
@@ -102,40 +104,31 @@ namespace hermes::impl {
     } else if(mtresp->size == 0) {
       return 0;
     } else {
-      auto resp = ctx->backend->fetch_content(path);
-      const std::string_view view = *resp;
-      size_t cnt = resp->size() - offset;
-      if(cnt > size) cnt = size;
-
-      view.substr(offset, cnt).copy(buf, std::string::npos);
-      return cnt;
+      auto resp = ctx->backend->fetch_content(mtresp->id, offset, size);
+      assert(resp.size() == size);
+      resp.copy(buf, std::string::npos);
+      return size;
     }
   }
 
   int write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
-    // TODO: blocks
-    auto resp = ctx->backend->fetch_content(path);
-    
     // TODO: I forgot, do we actually alter the size here?
     auto mtresp = ctx->backend->fetch_metadata(path);
 
-    if(!resp || !mtresp) {
+    if(!mtresp) {
       return -ENOENT;
     } else {
       // TODO: lock
-      resp->resize(offset);
-      resp->append(buf, size);
-      // TODO: Ignores errors for now
-      ctx->backend->put_content(path, *resp);
+      ctx->backend->put_content(mtresp->id, offset, std::string_view(buf, size));
 
       struct timespec now;
       clock_gettime(CLOCK_REALTIME, &now);
 
       mtresp->mtim = now;
       mtresp->atim = now;
-      mtresp->size = resp->size();
+      if(offset + size > mtresp->size) mtresp->size = offset + size;
       ctx->backend->put_metadata(path, *mtresp);
       return size;
     }
@@ -151,6 +144,7 @@ namespace hermes::impl {
     clock_gettime(CLOCK_REALTIME, &now);
 
     hermes::metadata mt = {
+      .id = ctx->backend->next_id(),
       .mode = mode,
       .uid = fctx->uid,
       .gid = fctx->gid,
@@ -163,7 +157,6 @@ namespace hermes::impl {
     // TODO: lock
     // TODO: check permission and deal with errors
     ctx->backend->put_metadata(path, mt);
-    ctx->backend->put_content(path, "");
     return 0;
   }
 
@@ -236,10 +229,6 @@ namespace hermes::impl {
 
     original->mtim = now;
     ctx->backend->put_metadata(to, *original);
-
-    auto content = ctx->backend->remove_content(from);
-    if(!content) ctx->backend->remove_content(to);
-    else ctx->backend->put_content(to, *content);
 
     return 0;
   }
