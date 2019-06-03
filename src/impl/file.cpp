@@ -186,9 +186,61 @@ namespace hermes::impl {
   int unlink(const char *path) {
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
     auto resp = ctx->backend->remove_metadata(path);
-    if(resp == hermes::backend::write_result::Ok) {
+    if(resp) {
       return 0;
     }
     return -ENOENT;
+  }
+
+  int rename(const char *from, const char *to) {
+    auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
+
+    /*
+    if(flags == RENAME_EXCHANGE) {
+      auto oriFrom = ctx->backend->remove_metadata(from);
+      if(!oriFrom) return -ENOENT;
+
+      auto oriTo = ctx->backend->remove_metadata(to);
+      if(!oriTo) {
+        ctx->backend->put_metadata(from, *oriFrom);
+        return -ENOENT;
+      }
+
+      struct timespec now;
+      clock_gettime(CLOCK_REALTIME, &now);
+
+      oriFrom->mtim = now;
+      oriTo->mtim = now;
+
+      ctx->backend->put_metadata(to, *oriFrom);
+      ctx->backend->put_metadata(from, *oriTo);
+
+      const auto contFrom = ctx->backend->remove_content(from);
+      const auto contTo = ctx->backend->remove_content(to);
+
+      if(contFrom) ctx->backend->put_content(to, *contFrom);
+      if(contTo) ctx->backend->put_content(from, *contTo);
+
+      return 0;
+    } else if(flags == RENAME_NOREPLACE) {
+      if(ctx->backend->fetch_metadata(to))
+        return -EEXIST;
+    }
+    */
+
+    auto original = ctx->backend->remove_metadata(from);
+    if(!original) return -ENOENT;
+
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+
+    original->mtim = now;
+    ctx->backend->put_metadata(to, *original);
+
+    auto content = ctx->backend->remove_content(from);
+    if(!content) ctx->backend->remove_content(to);
+    else ctx->backend->put_content(to, *content);
+
+    return 0;
   }
 }

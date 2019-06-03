@@ -43,10 +43,11 @@ namespace hermes::backend {
 
       write_result put_metadata(const std::string_view &path, const hermes::metadata &metadata);
       std::optional<hermes::metadata> fetch_metadata(const std::string_view &path);
-      write_result remove_metadata(const std::string_view &path);
+      std::optional<hermes::metadata> remove_metadata(const std::string_view &path);
 
       write_result put_content(const std::string_view &path, const std::string_view &content);
       std::optional<std::string> fetch_content(const std::string_view &path);
+      std::optional<std::string> remove_content(const std::string_view &path);
 
       /**
        * Iterate though a directory

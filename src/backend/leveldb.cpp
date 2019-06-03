@@ -49,27 +49,31 @@ namespace hermes::backend {
     const leveldb::Slice pathSlice(path.data(), path.length());
     auto status = this->metadata->Get(leveldb::ReadOptions(), pathSlice, &str);
 
-    hermes::metadata result;
-    str.copy(reinterpret_cast<char *>(&result), std::string::npos);
-
     // TODO: use seek and manually copy
 
-    if(status.ok())
+    if(status.ok()) {
+      hermes::metadata result;
+      str.copy(reinterpret_cast<char *>(&result), std::string::npos);
       return { result };
-    else
+    } else
       return {};
   }
 
-  write_result LDB::remove_metadata(const std::string_view &path) {
+  std::optional<hermes::metadata> LDB::remove_metadata(const std::string_view &path) {
     // TODO: check permission
     const leveldb::Slice pathSlice(path.data(), path.length());
+
+    auto fetched = this->fetch_metadata(path);
+
+    if(!fetched)
+      return fetched;
 
     auto status = this->metadata->Delete(leveldb::WriteOptions(), pathSlice);
 
     if(status.ok())
-      return write_result::Ok;
+      return fetched;
     else
-      return write_result::UnknownFailure;
+      return {}; // TODO: log error
   }
 
   write_result LDB::put_content(const std::string_view &path, const std::string_view &content) {
@@ -94,5 +98,21 @@ namespace hermes::backend {
       return { result };
     else
       return {}; // TODO: handle other types of errors
+  }
+
+  std::optional<std::string> LDB::remove_content(const std::string_view &path) {
+    const leveldb::Slice pathSlice(path.data(), path.length());
+
+    auto fetched = this->fetch_content(path);
+
+    if(!fetched)
+      return fetched;
+
+    auto status = this->content->Delete(leveldb::WriteOptions(), pathSlice);
+
+    if(status.ok())
+      return fetched;
+    else
+      return {}; // TODO: log error
   }
 }

@@ -14,6 +14,7 @@ fuse_operations hermes_oper = {
   .mkdir = hermes::impl::mkdir,
   .unlink = hermes::impl::unlink,
   .rmdir = hermes::impl::unlink, // Shares impl with unlink for now
+  .rename = hermes::impl::rename,
   .chmod = hermes::impl::chmod,
   .chown = hermes::impl::chown,
   .truncate = hermes::impl::truncate,

@@ -117,6 +117,7 @@ namespace hermes {
     int getattr(const char *path, struct stat *stbuf);
     int mkdir(const char *path, mode_t mode);
     int unlink(const char *path);
+    int rename(const char *from, const char *to);
     int chmod(const char *path, mode_t mode);
     int chown(const char *path, uid_t uid, gid_t gid);
     int truncate(const char *path, off_t len);
