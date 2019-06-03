@@ -18,6 +18,7 @@ fuse_operations hermes_oper = {
   .open = hermes::impl::open,
   .read = hermes::impl::read,
   .write = hermes::impl::write,
+  .release = hermes::impl::release,
   .readdir = hermes::impl::readdir,
   .init = hermes::impl::init,
   .destroy = hermes::impl::destroy,

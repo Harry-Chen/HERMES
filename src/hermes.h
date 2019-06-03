@@ -136,6 +136,7 @@ namespace hermes {
     int open(const char *path, struct fuse_file_info *fi);
     int read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi);
     int write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi);
+    int release(const char *fh, struct fuse_file_info *fi);
     int create(const char *path, mode_t mode, struct fuse_file_info *fi);
     int utimens(const char *path, const struct timespec tv[2]);
     int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi);
