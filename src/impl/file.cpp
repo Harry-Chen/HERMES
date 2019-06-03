@@ -92,14 +92,17 @@ namespace hermes::impl {
   int read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
-    auto resp = ctx->backend->fetch_content(path);
+    auto mtresp = ctx->backend->fetch_metadata(path);
 
     // TODO: upate atim
     // TODO: handle dir & symlink
 
-    if(!resp) {
+    if(!mtresp) {
       return -ENOENT;
+    } else if(mtresp->size == 0) {
+      return 0;
     } else {
+      auto resp = ctx->backend->fetch_content(path);
       const std::string_view view = *resp;
       size_t cnt = resp->size() - offset;
       if(cnt > size) cnt = size;
@@ -128,7 +131,7 @@ namespace hermes::impl {
       ctx->backend->put_content(path, *resp);
 
       struct timespec now;
-      clock_getres(CLOCK_REALTIME, &now);
+      clock_gettime(CLOCK_REALTIME, &now);
 
       mtresp->mtim = now;
       mtresp->atim = now;
@@ -145,7 +148,7 @@ namespace hermes::impl {
       return -EEXIST;
 
     struct timespec now;
-    clock_getres(CLOCK_REALTIME, &now);
+    clock_gettime(CLOCK_REALTIME, &now);
 
     hermes::metadata mt = {
       .mode = mode,
@@ -178,5 +181,14 @@ namespace hermes::impl {
     ctx->backend->put_metadata(path, *resp);
 
     return 0;
+  }
+
+  int unlink(const char *path) {
+    auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
+    auto resp = ctx->backend->remove_metadata(path);
+    if(resp == hermes::backend::write_result::Ok) {
+      return 0;
+    }
+    return -ENOENT;
   }
 }

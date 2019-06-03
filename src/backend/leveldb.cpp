@@ -60,6 +60,18 @@ namespace hermes::backend {
       return {};
   }
 
+  write_result LDB::remove_metadata(const std::string_view &path) {
+    // TODO: check permission
+    const leveldb::Slice pathSlice(path.data(), path.length());
+
+    auto status = this->metadata->Delete(leveldb::WriteOptions(), pathSlice);
+
+    if(status.ok())
+      return write_result::Ok;
+    else
+      return write_result::UnknownFailure;
+  }
+
   write_result LDB::put_content(const std::string_view &path, const std::string_view &content) {
     // TODO: check permission
 

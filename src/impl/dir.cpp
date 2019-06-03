@@ -15,7 +15,7 @@ namespace hermes::impl {
       return -EEXIST;
 
     struct timespec now;
-    clock_getres(CLOCK_REALTIME, &now);
+    clock_gettime(CLOCK_REALTIME, &now);
 
     hermes::metadata mt = {
       .mode = mode | S_IFDIR,
