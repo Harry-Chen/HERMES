@@ -4,9 +4,6 @@
 #include <cassert>
 #include <cstddef>
 
-#define FUSE_USE_VERSION 26
-#include <fuse/fuse.h>
-
 #include "hermes.h"
 
 fuse_operations hermes_oper = {

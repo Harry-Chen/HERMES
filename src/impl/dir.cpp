@@ -18,7 +18,7 @@ namespace hermes::impl {
     clock_gettime(CLOCK_REALTIME, &now);
 
     hermes::metadata mt = {
-      .mode = mode | S_IFDIR,
+      .mode = (mode_t)(mode | S_IFDIR),
 
       .uid = fctx->uid,
       .gid = fctx->gid,
