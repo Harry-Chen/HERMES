@@ -41,21 +41,15 @@ namespace hermes::impl {
     (void) offset; // Yes, we do not support offsets. (for now)
 
     char name[hermes::PATHNAME_LIMIT];
-    char *nameptr;
 
     std::string_view pathView(path);
 
     auto fctx = fuse_get_context();
     auto ctx = static_cast<hermes::impl::context *>(fctx->private_data);
     ctx->backend->iterate_directory(pathView, [&](const std::string_view &fp, const hermes::metadata &metadata) -> void {
-      nameptr = name;
-      for(const char c : fp.substr(pathView == "/" ? pathView.size() : pathView.size() + 1, std::string::npos)) {
-        if(c == '/') break;
-        *nameptr++ = c;
-      }
+      const size_t copied = fp.substr(pathView == "/" ? pathView.size() : pathView.size() + 1, std::string::npos).copy(name, std::string::npos);
+      name[copied] = '\0';
 
-      *nameptr = '\0';
-      std::cout<<">> Name:"<<name<<std::endl;
       const auto stat = metadata.to_stat();
       filler(buf, name, &stat, 0);
     });

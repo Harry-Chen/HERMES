@@ -10,6 +10,8 @@ const size_t LEVELDB_CONTENT_CACHE = 128 * 1048576;
 #define INIT_DB(db, cacheSize, path) \
   leveldb::Cache *db##Cache = leveldb::NewLRUCache(cacheSize); \
   leveldb::Options db##Opt; \
+  PathComparator *db##Cmp = new PathComparator; \
+  db##Opt.comparator = db##Cmp; \
   db##Opt.create_if_missing = true; \
   db##Opt.block_cache = db##Cache; \
   \
