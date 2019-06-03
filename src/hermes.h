@@ -1,7 +1,9 @@
 #ifndef __HERMES_H__
 #define __HERMES_H__
 
+#define FUSE_USE_VERSION 26
 #include <fuse/fuse.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace hermes {
@@ -85,9 +87,15 @@ namespace hermes {
         .st_size = size,
         .st_blksize = 0,
         .st_blocks = (size + 511) / 512,
+#ifndef __APPLE__
         .st_atim = atim,
         .st_mtim = mtim,
         .st_ctim = ctim,
+#else
+        .st_atimespec = atim,
+        .st_mtimespec = mtim,
+        .st_ctimespec = ctim,
+#endif
       };
 
       result.st_nlink = 0;
