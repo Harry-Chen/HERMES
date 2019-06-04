@@ -20,7 +20,7 @@ file(GLOB_RECURSE HDR_LIST src/*.h lib/*.h)
 
 include_directories("${HERMES_SOURCE_DIR}/src")
 
-add_executable(${EXE} ${SRC_LIST} ${HDR_LIST})
+add_executable(${EXE} ${SRC_LIST} ${HDR_LIST} src/utils.h)
 
 target_link_libraries(${EXE} ${FUSE_LIBRARIES})
 target_link_libraries(${EXE} ${LevelDB_LIBRARIES})

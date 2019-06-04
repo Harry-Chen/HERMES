@@ -2,9 +2,14 @@
 #define __HERMES_H__
 
 #define FUSE_USE_VERSION 26
+
 #include <fuse/fuse.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <string_view>
+#include <functional>
+
+#include "utils.h"
 
 namespace hermes {
   // Maximum length for pathnames
@@ -23,7 +28,7 @@ namespace hermes {
     const char *filedev;
     int show_help;
   };
-  
+
   extern hermes::options opts;
 
   /**
@@ -33,13 +38,6 @@ namespace hermes {
    * Constructed at init and will be passed as context
    * at all operations.
    */
-  template<typename Backend>
-  struct basic_context {
-    Backend *backend;
-
-    inline
-    basic_context(const options &opts) : backend(new Backend(opts)) {};
-  };
 
   struct metadata {
     // Ignored/omitted fields:
@@ -54,7 +52,7 @@ namespace hermes {
     // st_rdev is always 0, as we do not have device files either
     // st_blksize is also ignored
     // st_blocks is always ceil(size / 512) for now, as we do not support holes yet
-    
+
     // Internal file id
     // Only used for file I/O. Always 0 for directories
     uint64_t id;
@@ -122,6 +120,39 @@ namespace hermes {
       return (mode & S_IFMT) == S_IFLNK;
     }
   };
+
+  namespace backend {
+      template <typename R> using DirectoryIterator = std::function<void(const R&, const metadata&)>;
+  }
+
+  HAS_MEMBER_FUNC_CHECKER(fetch_metadata);
+  HAS_MEMBER_FUNC_CHECKER(put_metadata);
+  HAS_MEMBER_FUNC_CHECKER(remove_metadata);
+  HAS_MEMBER_FUNC_CHECKER(put_content);
+  HAS_MEMBER_FUNC_CHECKER(fetch_content);
+  HAS_MEMBER_FUNC_CHECKER(remove_content);
+  HAS_MEMBER_FUNC_CHECKER(next_id);
+  HAS_MULTIPLE_GENERIC_MEMBER_FUNC_CHECK(iterate_directory);
+
+  template<typename Backend>
+    struct basic_context {
+        Backend *backend;
+
+        static_assert(HAS_MEMBER_FUNC(Backend, fetch_metadata));
+        static_assert(HAS_MEMBER_FUNC(Backend, put_metadata));
+        static_assert(HAS_MEMBER_FUNC(Backend, remove_metadata));
+        static_assert(HAS_MEMBER_FUNC(Backend, put_content));
+        static_assert(HAS_MEMBER_FUNC(Backend, fetch_content));
+        static_assert(HAS_MEMBER_FUNC(Backend, remove_content));
+        static_assert(HAS_MEMBER_FUNC(Backend, next_id));
+        static_assert(HAS_MULTIPLE_GENERIC_MEMBER_FUNC_CHECKER_NAME(iterate_directory)<Backend,
+                backend::DirectoryIterator<std::string_view>,
+                backend::DirectoryIterator<std::string>,
+                backend::DirectoryIterator<char*>
+                >::value);
+
+        inline basic_context(const options &opts) : backend(new Backend(opts)) {};
+    };
 
   namespace impl {
     void* init(struct fuse_conn_info *conn);
