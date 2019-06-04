@@ -115,6 +115,8 @@ namespace hermes::backend {
     private:
       leveldb::DB *metadata;
       leveldb::DB *content;
+
+      uint64_t counter;
   };
 }
 

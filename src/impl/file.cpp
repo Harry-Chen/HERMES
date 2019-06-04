@@ -9,6 +9,8 @@
 #include <cassert>
 #include <unordered_map>
 
+#include <chrono>
+
 using namespace std;
 
 namespace hermes::impl {
@@ -151,6 +153,9 @@ namespace hermes::impl {
   }
 
   int release(const char *path, struct fuse_file_info *fi) {
+    auto saved_size = pending_size.find(fi->fh);
+    if(saved_size == pending_size.end()) return 0;
+
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
     auto mtresp = ctx->backend->fetch_metadata(path);
@@ -158,15 +163,10 @@ namespace hermes::impl {
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
 
-    mtresp->atim = now;
-
-    auto saved_size = pending_size.find(fi->fh);
-    if(saved_size != pending_size.end()) {
-      // Written
-      mtresp->mtim = now;
-      if(saved_size->second > mtresp->size) mtresp->size = saved_size->second;
-      pending_size.erase(saved_size);
-    }
+    // Written
+    mtresp->mtim = now;
+    if(saved_size->second > mtresp->size) mtresp->size = saved_size->second;
+    pending_size.erase(saved_size);
 
     ctx->backend->put_metadata(path, *mtresp);
     // cout<<"Write"<<endl;
@@ -174,6 +174,8 @@ namespace hermes::impl {
   }
 
   int create(const char *path, mode_t mode, struct fuse_file_info *fi) {
+    // auto before = std::chrono::high_resolution_clock::now();
+
     auto fctx = fuse_get_context();
     auto ctx = static_cast<hermes::impl::context *>(fctx->private_data);
     if(ctx->backend->fetch_metadata(path))
@@ -196,6 +198,11 @@ namespace hermes::impl {
     // TODO: lock
     // TODO: check permission and deal with errors
     ctx->backend->put_metadata(path, mt);
+
+    // auto after = std::chrono::high_resolution_clock::now();
+    // auto diff = after - before;
+
+    // cout<<"Time used: "<<std::chrono::duration_cast<std::chrono::nanoseconds>(diff).count()<<endl;
     return 0;
   }
 

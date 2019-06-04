@@ -38,6 +38,13 @@ namespace hermes::backend {
   LDB::LDB(hermes::options opts) {
     INIT_DB(metadata, LEVELDB_METADATA_CACHE, opts.kvdev, true);
     INIT_DB(content, LEVELDB_CONTENT_CACHE, opts.filedev, false);
+
+    counter = 0;
+
+    string str;
+    auto status = this->metadata->Get(leveldb::ReadOptions(), LEVELDB_NEXT_ID_KEY, &str);
+    if(status.ok())
+      counter = be64toh(*reinterpret_cast<uint64_t *>(str.data()));
   }
 
   LDB::~LDB() {
@@ -47,22 +54,16 @@ namespace hermes::backend {
   }
 
   uint64_t LDB::next_id() {
-    string str;
-    auto status = this->metadata->Get(leveldb::ReadOptions(), LEVELDB_NEXT_ID_KEY, &str);
 
-    uint64_t next = 0;
-    if(status.ok())
-      next = be64toh(*reinterpret_cast<uint64_t *>(str.data()));
-
-    uint64_t storing = htobe64(next + 1);
+    uint64_t next = counter++;
+    uint64_t storing = htobe64(counter);
 
     // Store next id
     if(!this->metadata->Put(leveldb::WriteOptions(), LEVELDB_NEXT_ID_KEY, leveldb::Slice(reinterpret_cast<char *>(&storing), 8)).ok()) {
       cout<<">> ERROR: cannot save next file id"<<endl;
-      // TODO: handle
     }
 
-    cout<<">> DEBUG: Yielding ID: "<<next<<endl;
+    // cout<<">> DEBUG: Yielding ID: "<<next<<endl;
     return next;
   }
 
