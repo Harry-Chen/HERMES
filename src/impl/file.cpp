@@ -14,7 +14,7 @@
 using namespace std;
 
 namespace hermes::impl {
-  static unordered_map<uint64_t, size_t> pending_size;
+  static unordered_map<uint64_t, uint64_t> pending_size;
 
   int getattr(const char *path, struct stat *stbuf) {
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
