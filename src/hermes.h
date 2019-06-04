@@ -138,13 +138,14 @@ namespace hermes {
     struct basic_context {
         Backend *backend;
 
-        static_assert(HAS_MEMBER_FUNC(Backend, fetch_metadata));
-        static_assert(HAS_MEMBER_FUNC(Backend, put_metadata));
-        static_assert(HAS_MEMBER_FUNC(Backend, remove_metadata));
-        static_assert(HAS_MEMBER_FUNC(Backend, put_content));
-        static_assert(HAS_MEMBER_FUNC(Backend, fetch_content));
-        static_assert(HAS_MEMBER_FUNC(Backend, remove_content));
-        static_assert(HAS_MEMBER_FUNC(Backend, next_id));
+        ASSERT_HAS_MEMBER_FUNC(Backend, fetch_metadata);
+        ASSERT_HAS_MEMBER_FUNC(Backend, put_metadata);
+        ASSERT_HAS_MEMBER_FUNC(Backend, remove_metadata);
+        ASSERT_HAS_MEMBER_FUNC(Backend, put_content);
+        ASSERT_HAS_MEMBER_FUNC(Backend, fetch_content);
+        ASSERT_HAS_MEMBER_FUNC(Backend, remove_content);
+        ASSERT_HAS_MEMBER_FUNC(Backend, next_id);
+        // FIXME: clang++ does not report errors even if all specified overloads do not compile
         static_assert(HAS_MULTIPLE_GENERIC_MEMBER_FUNC_CHECKER_NAME(iterate_directory)<Backend,
                 backend::DirectoryIterator<std::string_view>,
                 backend::DirectoryIterator<std::string>,

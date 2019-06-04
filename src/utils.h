@@ -8,6 +8,7 @@
 #include <type_traits>
 
 // token concatenation
+#define STR(S) #S
 #define _CAT(A, B) A##B
 #define CAT(A, B) _CAT(A, B)
 #define CHECKER_PREFIX __has_member_function_
@@ -24,7 +25,9 @@ struct HAS_MEMBER_FUNC_CHECKER_NAME(FUNC) \
 };
 
 #define HAS_MEMBER_FUNC(TYPE, FUNC) (HAS_MEMBER_FUNC_CHECKER_NAME(FUNC)<TYPE>::value)
-
+#define NO_MEMBER_FUNC_ERROR_MESSAGE(TYPE, FUNC) "Type " STR(TYPE) " does not implement function " STR(FUNC)
+#define ASSERT_HAS_MEMBER_FUNC(TYPE, FUNC) static_assert(HAS_MEMBER_FUNC(TYPE, FUNC), \
+    NO_MEMBER_FUNC_ERROR_MESSAGE(TYPE, FUNC));
 
 // generic member function with one type
 #define HAS_GENERIC_MEMBER_FUNC_CHECKER_NAME(FUNC) CAT(HAS_MEMBER_FUNC_CHECKER_NAME(FUNC), __generic)
@@ -38,6 +41,8 @@ struct HAS_GENERIC_MEMBER_FUNC_CHECKER_NAME(FUNC) \
 };
 
 #define HAS_GENERIC_MEMBER_FUNC(TYPE, FUNC, ARG) (HAS_GENERIC_MEMBER_FUNC_CHECKER_NAME(FUNC)<TYPE, ARG>::value)
+#define ASSERT_HAS_GENERIC_MEMBER_FUNC(TYPE, FUNC, ARG) static_assert(HAS_GENERIC_MEMBER_FUNC(TYPE, FUNC, ARG), \
+    NO_MEMBER_FUNC_ERROR_MESSAGE(TYPE, FUNC) "<" STR(ARG) ">");
 
 
 // generic member-functions with several possible types
