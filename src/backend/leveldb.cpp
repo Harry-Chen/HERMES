@@ -38,6 +38,13 @@ namespace hermes::backend {
   LDB::LDB(hermes::options opts) {
     INIT_DB(metadata, LEVELDB_METADATA_CACHE, opts.kvdev, true);
     INIT_DB(content, LEVELDB_CONTENT_CACHE, opts.filedev, false);
+
+    counter = 0;
+
+    string str;
+    auto status = this->metadata->Get(leveldb::ReadOptions(), LEVELDB_NEXT_ID_KEY, &str);
+    if(status.ok())
+      counter = be64toh(*reinterpret_cast<uint64_t *>(str.data()));
   }
 
   LDB::~LDB() {
@@ -47,22 +54,16 @@ namespace hermes::backend {
   }
 
   uint64_t LDB::next_id() {
-    string str;
-    auto status = this->metadata->Get(leveldb::ReadOptions(), LEVELDB_NEXT_ID_KEY, &str);
 
-    uint64_t next = 0;
-    if(status.ok())
-      next = be64toh(*reinterpret_cast<uint64_t *>(str.data()));
-
-    uint64_t storing = htobe64(next + 1);
+    uint64_t next = counter++;
+    uint64_t storing = htobe64(counter);
 
     // Store next id
     if(!this->metadata->Put(leveldb::WriteOptions(), LEVELDB_NEXT_ID_KEY, leveldb::Slice(reinterpret_cast<char *>(&storing), 8)).ok()) {
       cout<<">> ERROR: cannot save next file id"<<endl;
-      // TODO: handle
     }
 
-    cout<<">> DEBUG: Yielding ID: "<<next<<endl;
+    // cout<<">> DEBUG: Yielding ID: "<<next<<endl;
     return next;
   }
 
@@ -142,7 +143,7 @@ namespace hermes::backend {
         original.resize(offset - blkoff, 0);
         original += content.substr(0, len);
 
-        cout<<">> BACKEND: Put first chunk: "<<id<<" @ "<<blkoff<<endl;
+        // cout<<">> BACKEND: Put first chunk: "<<id<<" @ "<<blkoff<<endl;
 
         this->content->Put(leveldb::WriteOptions(), key, original);
       } else if(blkoff + LEVELDB_CHUNK_SIZE <= offset + content.size()) {
@@ -161,7 +162,7 @@ namespace hermes::backend {
           this->content->Put(leveldb::WriteOptions(), key, original);
         }
       } else {
-        cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
+        // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
         // Write entire chunk
         const string_view chunk_view = content.substr(blkoff - offset, blkoff - offset + LEVELDB_CHUNK_SIZE);
 
@@ -173,14 +174,15 @@ namespace hermes::backend {
     return write_result::Ok;
   }
 
-  string LDB::fetch_content(uint64_t id, size_t offset, size_t len) {
+  void LDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
     // TODO: make it work even if LEVELDB_CHUNK_SIZE changes. Needs to check the next offset entry
     const uint64_t fromOffset = (offset / LEVELDB_CHUNK_SIZE) * LEVELDB_CHUNK_SIZE;
 
     string strbeid, key;
-    string result = "";
     uint64_t beid = htobe64(id);
     uint64_t beoffset = htobe64(fromOffset);
+
+    char *ptr = buf;
 
     strbeid = string_view(reinterpret_cast<char *>(&beid), 8);
     key = strbeid;
@@ -193,33 +195,41 @@ namespace hermes::backend {
       uint64_t cid = be64toh(*reinterpret_cast<const uint64_t *>(it->key().data()));
       uint64_t blkoff = be64toh(*reinterpret_cast<const uint64_t *>(it->key().data() + 8));
 
-      cout<<">> BACKEND: Read chunk: "<<cid<<" @ "<<blkoff<<endl;
-      cout<<">> BACKEND: Already read: "<<result.size()<<endl;
+      // cout<<">> BACKEND: Read chunk: "<<cid<<" @ "<<blkoff<<endl;
+      // cout<<">> BACKEND: Already read: "<<result.size()<<endl;
 
       if(cid != id)
         break;
 
       // Detect holes
-      if(offset + result.size() < blkoff)
-        result.resize(blkoff - offset, 0);
+      if(offset + (ptr - buf) < blkoff) {
+        memset(ptr, 0, blkoff - offset - (ptr - buf));
+        ptr = buf + (blkoff - offset);
+      }
 
-      size_t innerOff = offset + result.size() - blkoff;
-      size_t innerLen = len - result.size();
+      size_t innerOff = offset + (ptr - buf) - blkoff;
+      size_t innerLen = len - (ptr - buf);
       if(innerLen > LEVELDB_CHUNK_SIZE - innerOff) innerLen = LEVELDB_CHUNK_SIZE - innerOff; // At most read chunk-size bytes
 
-      cout<<">> BACKEND: Read off/len: "<<innerOff<<" [] "<<innerLen<<endl;
+      // cout<<">> BACKEND: Read off/len: "<<innerOff<<" [] "<<innerLen<<endl;
 
       string_view value(it->value().data(), it->value().size());
       string_view view = value.substr(innerOff, innerLen);
-      result += view;
-      if(view.size() < innerLen)
-        result.resize(result.size() - view.size() + innerLen, 0);
+      view.copy(ptr, std::string::npos);
+      ptr += view.size();
 
-      if(result.size() == len) break;
+      if(view.size() < innerLen) {
+        memset(ptr, 0, innerLen - view.size());
+        ptr += innerLen - view.size();
+      }
+
+      if((ptr - buf) == len) break;
     }
 
-    result.resize(len, 0);
-    return result;
+    if(ptr - buf < len)
+      memset(ptr, 0, len + (ptr-buf));
+
+    return;
   }
 
   write_result LDB::remove_content(uint64_t id) {

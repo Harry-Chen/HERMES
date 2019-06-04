@@ -18,6 +18,7 @@ fuse_operations hermes_oper = {
   .open = hermes::impl::open,
   .read = hermes::impl::read,
   .write = hermes::impl::write,
+  .release = hermes::impl::release,
   .readdir = hermes::impl::readdir,
   .init = hermes::impl::init,
   .destroy = hermes::impl::destroy,
@@ -29,8 +30,8 @@ namespace hermes {
   hermes::options opts;
 }
 
-#define DEFAULT_KV_DEV      "/fuse/kv"               // DO NOT care about this name
-#define DEFAULT_FILE_DEV    "/fuse/file"         // same as above
+#define DEFAULT_KV_DEV      "/tmp/fuse/kv"               // DO NOT care about this name
+#define DEFAULT_FILE_DEV    "/tmp/fuse/file"         // same as above
 #define FUSE_OPTION(t, p) { t, offsetof(hermes::options, p), 1 }
 
 static struct fuse_opt option_spec[] = {
