@@ -24,7 +24,7 @@ namespace hermes {
    * of opening the k-v database.
    */
   struct options {
-    const char *kvdev;
+    const char *metadev;
     const char *filedev;
     int show_help;
   };

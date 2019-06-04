@@ -36,7 +36,7 @@ const char *LEVELDB_NEXT_ID_KEY = "#id";
 
 namespace hermes::backend {
   LDB::LDB(hermes::options opts) {
-    INIT_DB(metadata, LEVELDB_METADATA_CACHE, opts.kvdev, true);
+    INIT_DB(metadata, LEVELDB_METADATA_CACHE, opts.metadev, true);
     INIT_DB(content, LEVELDB_CONTENT_CACHE, opts.filedev, false);
 
     counter = 0;
