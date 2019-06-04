@@ -5,6 +5,13 @@
 #include <leveldb/slice.h>
 #include <leveldb/write_batch.h>
 
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+
+#define htobe64(x) OSSwapHostToBigInt64(x)
+#define be64toh(x) OSSwapBigToHostInt64(x)
+#endif
+
 using namespace std;
 
 const size_t LEVELDB_METADATA_CACHE = 128 * 1048576;
