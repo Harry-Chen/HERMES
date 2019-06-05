@@ -92,6 +92,8 @@ int open(const char *path, struct fuse_file_info *fi) {
         return -EISDIR;
     } else {
         fi->fh = resp->id;
+        if(pending_size.find(resp->id) == pending_size.end())
+          pending_size[resp->id] = resp->size;
         // cout<<">> FileID: "<<resp->id<<endl;
         return 0;
     }
@@ -117,6 +119,13 @@ int read(const char *path, char *buf, size_t size, off_t offset, struct fuse_fil
       return size;
     }
     */
+
+    if(offset + size > pending_size[fi->fh]) {
+      if(offset > pending_size[fi->fh])
+        return 0;
+
+      size = pending_size[fi->fh] - offset;
+    }
 
     ctx->backend->fetch_content(fi->fh, offset, size, buf);
     return size;
