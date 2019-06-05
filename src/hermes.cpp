@@ -6,23 +6,23 @@
 #include "hermes.h"
 
 fuse_operations hermes_oper = {
-        .getattr = hermes::impl::getattr,
-        .mkdir = hermes::impl::mkdir,
-        .unlink = hermes::impl::unlink,
-        .rmdir = hermes::impl::unlink, // Shares impl with unlink for now
-        .rename = hermes::impl::rename,
-        .chmod = hermes::impl::chmod,
-        .chown = hermes::impl::chown,
-        .truncate = hermes::impl::truncate,
-        .open = hermes::impl::open,
-        .read = hermes::impl::read,
-        .write = hermes::impl::write,
-        .release = hermes::impl::release,
-        .readdir = hermes::impl::readdir,
-        .init = hermes::impl::init,
-        .destroy = hermes::impl::destroy,
-        .create = hermes::impl::create,
-        .utimens = hermes::impl::utimens,
+    .getattr = hermes::impl::getattr,
+    .mkdir = hermes::impl::mkdir,
+    .unlink = hermes::impl::unlink,
+    .rmdir = hermes::impl::unlink, // Shares impl with unlink for now
+    .rename = hermes::impl::rename,
+    .chmod = hermes::impl::chmod,
+    .chown = hermes::impl::chown,
+    .truncate = hermes::impl::truncate,
+    .open = hermes::impl::open,
+    .read = hermes::impl::read,
+    .write = hermes::impl::write,
+    .release = hermes::impl::release,
+    .readdir = hermes::impl::readdir,
+    .init = hermes::impl::init,
+    .destroy = hermes::impl::destroy,
+    .create = hermes::impl::create,
+    .utimens = hermes::impl::utimens,
 };
 
 namespace hermes {
@@ -34,11 +34,11 @@ namespace hermes {
 #define FUSE_OPTION(t, p) { t, offsetof(hermes::options, p), 1 }
 
 static struct fuse_opt option_spec[] = {
-        FUSE_OPTION("--metadev=%s", metadev),
-        FUSE_OPTION("--filedev=%s", filedev),
-        FUSE_OPTION("-h", show_help),
-        FUSE_OPTION("--help", show_help),
-        FUSE_OPT_END
+    FUSE_OPTION("--metadev=%s", metadev),
+    FUSE_OPTION("--filedev=%s", filedev),
+    FUSE_OPTION("-h", show_help),
+    FUSE_OPTION("--help", show_help),
+    FUSE_OPT_END
 };
 
 static void show_help(const char *progname) {

@@ -209,8 +209,9 @@ namespace hermes::backend {
 
             size_t innerOff = offset + (ptr - buf) - blkoff;
             size_t innerLen = len - (ptr - buf);
-            if (innerLen > LEVELDB_CHUNK_SIZE - innerOff) innerLen = LEVELDB_CHUNK_SIZE -
-                                                                     innerOff; // At most read chunk-size bytes
+            if (innerLen > LEVELDB_CHUNK_SIZE - innerOff)
+                innerLen = LEVELDB_CHUNK_SIZE -
+                           innerOff; // At most read chunk-size bytes
 
             // cout<<">> BACKEND: Read off/len: "<<innerOff<<" [] "<<innerLen<<endl;
 
