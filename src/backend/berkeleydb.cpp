@@ -1,5 +1,9 @@
 #include "berkeleydb.h"
 
+#include <string.h>
+#include <memory.h>
+#include <stdlib.h>
+
 const char *COUNTER_KEY = "\xca\xfe";
 
 int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *) {
