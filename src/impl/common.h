@@ -2,6 +2,7 @@
 #define __IMPL_COMMON_H__
 
 #include "backend/leveldb.h"
+#include "backend/rocksdb.h"
 
 namespace hermes::impl {
 /**

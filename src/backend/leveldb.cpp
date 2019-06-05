@@ -1,7 +1,13 @@
+#ifndef _ROCKS_DB_
 #include "backend/leveldb.h"
-
 #include <leveldb/cache.h>
 #include <leveldb/write_batch.h>
+#else
+#include <rocksdb/cache.h>
+#include <rocksdb/table.h>
+#include <rocksdb/write_batch.h>
+#include "backend/rocksdb.h"
+#endif
 
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
@@ -12,35 +18,62 @@
 
 using namespace std;
 
-const size_t LEVELDB_METADATA_CACHE = 128 * 1048576;
-const size_t LEVELDB_CONTENT_CACHE = 128 * 1048576;
+#ifndef _ROCKS_DB_
+#define DB_NAME LEVELDB
+#else
+#define DB_NAME ROCKSDB
+#endif
 
-const size_t LEVELDB_CHUNK_SIZE = 4096;
+#define DB_METADATA_CACHE CAT(DB_NAME, _METADATA_CACHE)
+#define DB_CONTENT_CACHE CAT(DB_NAME, _CONTENT_CACHE)
+#define DB_CHUNK_SIZE CAT(DB_NAME, _CHUNK_SIZE)
+#define DB_NEXT_ID_KEY CAT(DB_NAME, _NEXT_ID_KEY)
 
-const char *LEVELDB_NEXT_ID_KEY = "#id";
+const size_t DB_METADATA_CACHE = 128 * 1048576;
+const size_t DB_CONTENT_CACHE = 128 * 1048576;
+const size_t DB_CHUNK_SIZE = 4096;
 
-#define INIT_DB(db, cacheSize, path, cmp)                               \
-    leveldb::Cache *db##Cache = leveldb::NewLRUCache(cacheSize);        \
-    leveldb::Options db##Opt;                                           \
-    if (cmp) {                                                          \
-        PathComparator *db##Cmp = new PathComparator;                   \
-        db##Opt.comparator = db##Cmp;                                   \
-    }                                                                   \
-    db##Opt.create_if_missing = true;                                   \
-    db##Opt.block_cache = db##Cache;                                    \
-                                                                        \
-    leveldb::Status db##Status = leveldb::DB::Open(db##Opt, path, &db); \
+const char *DB_NEXT_ID_KEY = "#id";
+
+#ifndef _ROCKS_DB_
+#define INIT_DB(db, cacheSize, path, cmp)                    \
+    auto *db##Cache = leveldb::NewLRUCache(cacheSize);       \
+    leveldb::Options db##Opt;                                \
+    if (cmp) {                                               \
+        auto *db##Cmp = new PathComparator;           \
+        db##Opt.comparator = db##Cmp;                        \
+    }                                                        \
+    db##Opt.create_if_missing = true;                        \
+    db##Opt.block_cache = db##Cache;                         \
+                                                             \
+    auto db##Status = leveldb::DB::Open(db##Opt, path, &db); \
     assert(db##Status.ok());
+#else
+#define INIT_DB(db, cacheSize, path, cmp)                                               \
+    auto db##Cache = rocksdb::NewLRUCache(cacheSize);                                   \
+    rocksdb::BlockBasedTableOptions db##table_options;                                  \
+    rocksdb::Options db##Opt;                                                           \
+    if (cmp) {                                                                          \
+        auto *db##Cmp = new PathComparator;                                      \
+        db##Opt.comparator = db##Cmp;                                                   \
+    }                                                                                   \
+    db##Opt.create_if_missing = true;                                                   \
+    db##table_options.block_cache = db##Cache;                                          \
+    db##Opt.table_factory.reset(rocksdb::NewBlockBasedTableFactory(db##table_options)); \
+                                                                                        \
+    auto db##Status = rocksdb::DB::Open(db##Opt, path, &db);                            \
+    assert(db##Status.ok());
+#endif
 
 namespace hermes::backend {
 LDB::LDB(hermes::options opts) {
-    INIT_DB(metadata, LEVELDB_METADATA_CACHE, opts.metadev, true);
-    INIT_DB(content, LEVELDB_CONTENT_CACHE, opts.filedev, false);
+    INIT_DB(metadata, DB_METADATA_CACHE, opts.metadev, true)
+    INIT_DB(content, DB_CONTENT_CACHE, opts.filedev, false)
 
     counter = 0;
 
     string str;
-    auto status = this->metadata->Get(leveldb::ReadOptions(), LEVELDB_NEXT_ID_KEY, &str);
+    auto status = this->metadata->Get(leveldb::ReadOptions(), DB_NEXT_ID_KEY, &str);
     if (status.ok()) counter = be64toh(*reinterpret_cast<uint64_t *>(str.data()));
 }
 
@@ -56,7 +89,7 @@ uint64_t LDB::next_id() {
 
     // Store next id
     if (!this->metadata
-             ->Put(leveldb::WriteOptions(), LEVELDB_NEXT_ID_KEY,
+             ->Put(leveldb::WriteOptions(), DB_NEXT_ID_KEY,
                    leveldb::Slice(reinterpret_cast<char *>(&storing), 8))
              .ok()) {
         cout << ">> ERROR: cannot save next file id" << endl;
@@ -114,13 +147,13 @@ optional<hermes::metadata> LDB::remove_metadata(const string_view &path) {
 
 write_result LDB::put_content(uint64_t id, size_t offset, const string_view &content) {
     // TODO: make it work even if LEVELDB_CHUNK_SIZE changes. Needs to check the next offset entry
-    const uint64_t fromOffset = (offset / LEVELDB_CHUNK_SIZE) * LEVELDB_CHUNK_SIZE;
+    const uint64_t fromOffset = (offset / DB_CHUNK_SIZE) * DB_CHUNK_SIZE;
 
     string strbeid, key;
     string original;
 
     for (uint64_t blkoff = fromOffset; blkoff < offset + content.size();
-         blkoff += LEVELDB_CHUNK_SIZE) {
+         blkoff += DB_CHUNK_SIZE) {
         uint64_t beid = htobe64(id);
         uint64_t beoffset = htobe64(blkoff);
 
@@ -136,7 +169,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
                 original = "";
             }
 
-            size_t len = LEVELDB_CHUNK_SIZE - (offset - blkoff);
+            size_t len = DB_CHUNK_SIZE - (offset - blkoff);
             if (len > content.size()) len = content.size();
 
             original.resize(offset - blkoff, 0);
@@ -145,7 +178,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
             // cout<<">> BACKEND: Put first chunk: "<<id<<" @ "<<blkoff<<endl;
 
             this->content->Put(leveldb::WriteOptions(), key, original);
-        } else if (blkoff + LEVELDB_CHUNK_SIZE <= offset + content.size()) {
+        } else if (blkoff + DB_CHUNK_SIZE <= offset + content.size()) {
             // Write into head
             if (!this->content->Get(leveldb::ReadOptions(), key, &original).ok()) {
                 original = "";
@@ -165,7 +198,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
             // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
             // Write entire chunk
             const string_view chunk_view =
-                content.substr(blkoff - offset, blkoff - offset + LEVELDB_CHUNK_SIZE);
+                content.substr(blkoff - offset, blkoff - offset + DB_CHUNK_SIZE);
 
             // cout<<">> BACKEND: Data: "<<chunk_view<<endl;
             this->content->Put(leveldb::WriteOptions(), key,
@@ -178,7 +211,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
 
 void LDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
     // TODO: make it work even if LEVELDB_CHUNK_SIZE changes. Needs to check the next offset entry
-    const uint64_t fromOffset = (offset / LEVELDB_CHUNK_SIZE) * LEVELDB_CHUNK_SIZE;
+    const uint64_t fromOffset = (offset / DB_CHUNK_SIZE) * DB_CHUNK_SIZE;
 
     string strbeid, key;
     uint64_t beid = htobe64(id);
@@ -210,8 +243,8 @@ void LDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
 
         size_t innerOff = offset + (ptr - buf) - blkoff;
         size_t innerLen = len - (ptr - buf);
-        if (innerLen > LEVELDB_CHUNK_SIZE - innerOff)
-            innerLen = LEVELDB_CHUNK_SIZE - innerOff;  // At most read chunk-size bytes
+        if (innerLen > DB_CHUNK_SIZE - innerOff)
+            innerLen = DB_CHUNK_SIZE - innerOff;  // At most read chunk-size bytes
 
         // cout<<">> BACKEND: Read off/len: "<<innerOff<<" [] "<<innerLen<<endl;
 

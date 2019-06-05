@@ -4,8 +4,14 @@
 #include "backend/common.h"
 #include "hermes.h"
 
+#ifndef _ROCKS_DB_
 #include <leveldb/comparator.h>
 #include <leveldb/db.h>
+#else
+#include <rocksdb/comparator.h>
+#include <rocksdb/db.h>
+#endif
+
 #include <iostream>
 #include <memory>
 #include <optional>
