@@ -171,7 +171,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
             // cout<<">> BACKEND: Put first chunk: "<<id<<" @ "<<blkoff<<endl;
 
             this->content->Put(leveldb::WriteOptions(), key, original);
-        } else if (blkoff + DB_CHUNK_SIZE <= offset + content.size()) {
+        } else if (blkoff + DB_CHUNK_SIZE > offset + content.size()) {
             // Write into head
             if (!this->content->Get(leveldb::ReadOptions(), key, &original).ok()) {
                 original = "";
