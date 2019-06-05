@@ -9,7 +9,6 @@
 #include "backend/rocksdb.h"
 #endif
 
-
 using namespace std;
 
 #ifndef _ROCKS_DB_
