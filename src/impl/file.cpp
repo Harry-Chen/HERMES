@@ -74,6 +74,7 @@ int truncate(const char *path, off_t size) {
     }
 
     resp->size = size;
+    pending_size[resp->id] = size;
 
     ctx->backend->put_metadata(path, *resp);
 
@@ -169,7 +170,7 @@ int release(const char *path, struct fuse_file_info *fi) {
 
     // Written
     mtresp->mtim = now;
-    if (saved_size->second > mtresp->size) mtresp->size = saved_size->second;
+    mtresp->size = saved_size->second;
     pending_size.erase(saved_size);
 
     ctx->backend->put_metadata(path, *mtresp);
@@ -201,6 +202,9 @@ int create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     // TODO: lock
     // TODO: check permission and deal with errors
     ctx->backend->put_metadata(path, mt);
+
+    fi->fh = mt.id;
+    pending_size[mt.id] = 0;
 
     // auto after = std::chrono::high_resolution_clock::now();
     // auto diff = after - before;
