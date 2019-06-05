@@ -9,12 +9,6 @@
 #include "backend/rocksdb.h"
 #endif
 
-#ifdef __APPLE__
-#include <libkern/OSByteOrder.h>
-
-#define htobe64(x) OSSwapHostToBigInt64(x)
-#define be64toh(x) OSSwapBigToHostInt64(x)
-#endif
 
 using namespace std;
 
@@ -90,7 +84,7 @@ uint64_t LDB::next_id() {
     // Store next id
     if (!this->metadata
              ->Put(leveldb::WriteOptions(), DB_NEXT_ID_KEY,
-                   leveldb::Slice(reinterpret_cast<char *>(&storing), 8))
+                   leveldb::Slice(reinterpret_cast<char *>(&storing), sizeof(uint64_t)))
              .ok()) {
         cout << ">> ERROR: cannot save next file id" << endl;
     }

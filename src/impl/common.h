@@ -4,7 +4,7 @@
 #if defined(HERMES_BACKEND_VEDIS)
 static_assert(false);
 #elif defined(HERMES_BACKEND_BERKELEYDB)
-static_assert(false);
+#include "backend/berkeleydb.h"
 #elif defined(HERMES_BACKEND_LEVELDB)
 #include "backend/leveldb.h"
 #elif defined(HERMES_BACKEND_ROCKSDB)
@@ -18,7 +18,7 @@ namespace hermes::impl {
 #if defined(HERMES_BACKEND_VEDIS)
 static_assert(false);
 #elif defined(HERMES_BACKEND_BERKELEYDB)
-static_assert(false);
+using context = hermes::basic_context<hermes::backend::BDB>;
 #elif defined(HERMES_BACKEND_LEVELDB)
 using context = hermes::basic_context<hermes::backend::LDB>;
 #elif defined(HERMES_BACKEND_ROCKSDB)
