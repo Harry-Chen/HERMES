@@ -37,7 +37,10 @@ if(ROCKSDB_FOUND)
 
         if(RocksDB_VERSION_MAJOR AND RocksDB_VERSION_MINOR AND RocksDB_VERSION_PATCH)
             set(RocksDB_VERSION "${RocksDB_VERSION_MAJOR}.${RocksDB_VERSION_MINOR}.${RocksDB_VERSION_PATCH}")
+        else()
+            set(RocksDB_VERSION "Unknown")
         endif()
+        mark_as_advanced(RocksDB_VERSION)
     endif()
 
 endif()

@@ -1,0 +1,3 @@
+[submodule "lib/vedis"]
+	path = lib/vedis
+	url = git@github.com:symisc/vedis.git

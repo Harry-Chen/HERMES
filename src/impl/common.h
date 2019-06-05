@@ -2,7 +2,7 @@
 #define __IMPL_COMMON_H__
 
 #if defined(HERMES_BACKEND_VEDIS)
-static_assert(false);
+#include "backend/vedis.h"
 #elif defined(HERMES_BACKEND_BERKELEYDB)
 #include "backend/berkeleydb.h"
 #elif defined(HERMES_BACKEND_LEVELDB)
@@ -16,7 +16,7 @@ namespace hermes::impl {
  * The selected context
  */
 #if defined(HERMES_BACKEND_VEDIS)
-static_assert(false);
+using context = hermes::basic_context<hermes::backend::Vedis>;
 #elif defined(HERMES_BACKEND_BERKELEYDB)
 using context = hermes::basic_context<hermes::backend::BDB>;
 #elif defined(HERMES_BACKEND_LEVELDB)

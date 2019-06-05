@@ -1,8 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
-project(HERMES LANGUAGES CXX)
+project(HERMES LANGUAGES C CXX)
 
+# workaround ipo warning
+cmake_policy(SET CMP0069 NEW)
+
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto -Ofast -march=native -mtune=native -Wall -g -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64")
+
+set(COMPILER_FLAGS "-Ofast -march=native -mtune=native -Wall -g -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMPILER_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_FLAGS}")
 
 set(EXE HERMES)
 
@@ -16,13 +23,13 @@ include_directories(${FUSE_INCLUDE})
 
 # find KV backend
 option(BACKEND "Key-Value backend" OFF)
-set(BACKEND_VALUES "BerkeleyDB" "LevelDB" "RocksDB" "vedis")
+set(BACKEND_VALUES "BerkeleyDB" "LevelDB" "RocksDB" "Vedis")
 set_property(CACHE BACKEND PROPERTY STRINGS ${BACKEND_VALUES})
 list(FIND BACKEND_VALUES ${BACKEND} BACKEND_INDEX)
 
 if(${BACKEND_INDEX} EQUAL -1)
     message(WARNING "Backend ${BACKEND} not supported, valid items are: ${BACKEND_VALUES}")
-    set(BACKEND "LevelDB")
+    set(BACKEND "Vedis")
 endif()
 
 
@@ -35,7 +42,7 @@ add_definitions("-DHERMES_BACKEND_${BACKEND}")
 
 # add backend-independent source files
 file(GLOB_RECURSE SOURCES src/*.cpp)
-file(GLOB_RECURSE HEADERS src/*.h lib/*.h)
+file(GLOB_RECURSE HEADERS src/*.h)
 # remove backend-dependent files
 list(FILTER HEADERS EXCLUDE REGEX "src/backend/.*")
 list(FILTER SOURCES EXCLUDE REGEX "src/backend/.*")
@@ -45,7 +52,11 @@ include_directories("${HERMES_SOURCE_DIR}/src")
 
 # find backend library, add backend-specific files and detect version
 if(${BACKEND} STREQUAL VEDIS)
-
+    include(lib/vedis.cmake)
+    set(HEADERS ${HEADERS} src/backend/vedis.h)
+    set(SOURCES ${SOURCES} src/backend/vedis.cpp)
+    include_directories(${VEDIS_INCLUDE_DIR})
+    set(BACKEND_VERSION ${VEDIS_VERSION})
 elseif(${BACKEND} STREQUAL LEVELDB)
     find_package(LevelDB REQUIRED)
     include_directories(${LevelDB_INCLUDE})
@@ -72,13 +83,14 @@ add_definitions("-DHERMES_BACKEND_VERSION=\"${BACKEND_VERSION}\"")
 
 # compile the executable
 add_executable(${EXE} ${SOURCES} ${HEADERS} src/utils.h)
+set_property(TARGET ${EXE} PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 target_link_libraries(${EXE} ${FUSE_LIBRARIES})
 target_link_libraries(${EXE} ${CMAKE_THREAD_LIBS_INIT})
 
 
 # link to backend library
 if(${BACKEND} STREQUAL VEDIS)
-
+    target_link_libraries(${EXE} ${VEDIS_LIBRARY})
 elseif(${BACKEND} STREQUAL LEVELDB)
     target_link_libraries(${EXE} ${LevelDB_LIBRARIES})
 elseif(${BACKEND} STREQUAL ROCKSDB)
