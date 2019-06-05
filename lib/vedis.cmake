@@ -1,4 +1,9 @@
 set(VEDIS_DIR ${CMAKE_SOURCE_DIR}/lib/vedis)
+
+if(NOT EXISTS "${VEDIS_DIR}/vedis.h")
+    message(FATAL_ERROR "Vedis source code not present. Please update your git submodules!")
+endif()
+
 set(VEDIS_INCLUDE_DIR ${VEDIS_DIR})
 
 add_library(vedis STATIC ${VEDIS_DIR}/vedis.c ${VEDIS_DIR}/vedis.h)
