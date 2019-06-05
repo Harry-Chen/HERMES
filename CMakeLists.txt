@@ -67,7 +67,7 @@ elseif(${BACKEND} STREQUAL BERKELEYDB)
 endif()
 
 message(STATUS "HERMES backend version: ${BACKEND_VERSION}")
-add_definitions("-DHERMES_BACKEND_VERSION=${BACKEND_VERSION}")
+add_definitions("-DHERMES_BACKEND_VERSION=\"${BACKEND_VERSION}\"")
 
 
 # compile the executable

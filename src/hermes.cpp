@@ -60,7 +60,7 @@ static void show_help(const char *progname) {
 static void show_version() {
     printf("HERMES: sHallow dirEctory stRucture Many-filE fileSystem\n");
     printf("Compilation Time: %s %s\n", __DATE__, __TIME__);
-    printf("Key-Value Backend: %s\n", HERMES_BACKEND);
+    printf("Key-Value Backend: %s %s\n", HERMES_BACKEND, HERMES_BACKEND_VERSION);
     puts("");
 }
 
