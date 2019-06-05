@@ -27,6 +27,7 @@ struct options {
     const char *metadev;
     const char *filedev;
     int show_help;
+    int show_version;
 };
 
 extern hermes::options opts;
