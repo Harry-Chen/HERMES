@@ -40,7 +40,7 @@ const char *DB_NEXT_ID_KEY = "#id";
     auto *db##Cache = leveldb::NewLRUCache(cacheSize);       \
     leveldb::Options db##Opt;                                \
     if (cmp) {                                               \
-        auto *db##Cmp = new PathComparator;           \
+        auto *db##Cmp = new PathComparator;                  \
         db##Opt.comparator = db##Cmp;                        \
     }                                                        \
     db##Opt.create_if_missing = true;                        \
@@ -54,7 +54,7 @@ const char *DB_NEXT_ID_KEY = "#id";
     rocksdb::BlockBasedTableOptions db##table_options;                                  \
     rocksdb::Options db##Opt;                                                           \
     if (cmp) {                                                                          \
-        auto *db##Cmp = new PathComparator;                                      \
+        auto *db##Cmp = new PathComparator;                                             \
         db##Opt.comparator = db##Cmp;                                                   \
     }                                                                                   \
     db##Opt.create_if_missing = true;                                                   \
@@ -152,8 +152,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
     string strbeid, key;
     string original;
 
-    for (uint64_t blkoff = fromOffset; blkoff < offset + content.size();
-         blkoff += DB_CHUNK_SIZE) {
+    for (uint64_t blkoff = fromOffset; blkoff < offset + content.size(); blkoff += DB_CHUNK_SIZE) {
         uint64_t beid = htobe64(id);
         uint64_t beoffset = htobe64(blkoff);
 

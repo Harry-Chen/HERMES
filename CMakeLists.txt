@@ -12,14 +12,15 @@ option(BACKEND "Key-Value backend" OFF)
 set(BACKEND_VALUES "BerkeleyDB" "LevelDB" "RocksDB" "vedis")
 set_property(CACHE BACKEND PROPERTY STRINGS ${BACKEND_VALUES})
 list(FIND BACKEND_VALUES ${BACKEND} BACKEND_INDEX)
-IF(${BACKEND_INDEX} EQUAL -1)
+
+if(${BACKEND_INDEX} EQUAL -1)
     message(WARNING "Backend ${BACKEND} is empty or not supported, valid items are ${BACKEND_VALUES}")
-    SET(BACKEND "LevelDB")
-ELSE()
-    add_definitions("-DHERMES_BACKEND=\"${BACKEND}\"")
-    string(TOUPPER "${BACKEND}" BACKEND)
-    add_definitions("-DHERMES_BACKEND_${BACKEND}")
-ENDIF()
+    set(BACKEND "LevelDB")
+endif()
+
+add_definitions("-DHERMES_BACKEND=\"${BACKEND}\"")
+string(TOUPPER "${BACKEND}" BACKEND)
+add_definitions("-DHERMES_BACKEND_${BACKEND}")
 
 message(STATUS "HERMES backend: ${BACKEND}")
 
@@ -38,34 +39,34 @@ set(HEADERS ${HEADERS} src/backend/common.h)
 
 include_directories("${HERMES_SOURCE_DIR}/src")
 
-if (${BACKEND} STREQUAL VEDIS)
+if(${BACKEND} STREQUAL VEDIS)
 
-elseif (${BACKEND} STREQUAL LEVELDB)
+elseif(${BACKEND} STREQUAL LEVELDB)
     find_package(LevelDB REQUIRED)
     include_directories(${LevelDB_INCLUDE})
     set(HEADERS ${HEADERS} src/backend/leveldb.h)
     set(HEADERS ${SOURCES} src/backend/leveldb.cpp)
-elseif (${BACKEND} STREQUAL ROCKSDB)
+elseif(${BACKEND} STREQUAL ROCKSDB)
     find_package(RocksDB REQUIRED)
     include_directories(${RocksDB_INCLUDE_DIR})
     set(HEADERS ${HEADERS} src/backend/rocksdb.h)
     set(HEADERS ${SOURCES} src/backend/rocksdb.cpp)
-elseif (${BACKEND} STREQUAL BERKELEYDB)
+elseif(${BACKEND} STREQUAL BERKELEYDB)
 
-endif ()
+endif()
 
 add_executable(${EXE} ${SOURCES} ${HEADERS} src/utils.h)
 
 target_link_libraries(${EXE} ${FUSE_LIBRARIES})
 target_link_libraries(${EXE} ${CMAKE_THREAD_LIBS_INIT})
 
-if (${BACKEND} STREQUAL VEDIS)
+if(${BACKEND} STREQUAL VEDIS)
 
-elseif (${BACKEND} STREQUAL LEVELDB)
+elseif(${BACKEND} STREQUAL LEVELDB)
     target_link_libraries(${EXE} ${LevelDB_LIBRARIES})
-elseif (${BACKEND} STREQUAL ROCKSDB)
+elseif(${BACKEND} STREQUAL ROCKSDB)
     target_link_libraries(${EXE} ${RocksDB_LIBRARIES})
-elseif (${BACKEND} STREQUAL BERKELEYDB)
+elseif(${BACKEND} STREQUAL BERKELEYDB)
 
-endif ()
+endif()
 
