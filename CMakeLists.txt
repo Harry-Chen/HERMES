@@ -29,7 +29,7 @@ list(FIND BACKEND_VALUES ${BACKEND} BACKEND_INDEX)
 
 if(${BACKEND_INDEX} EQUAL -1)
     message(WARNING "Backend ${BACKEND} not supported, valid items are: ${BACKEND_VALUES}")
-    set(BACKEND "Vedis")
+    set(BACKEND "LevelDB")
 endif()
 
 
