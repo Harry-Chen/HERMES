@@ -39,13 +39,13 @@ static struct fuse_opt option_spec[] = {
     FUSE_OPTION("--filedev=%s", filedev, 0),
     FUSE_OPTION("-h", show_help, 1),
     FUSE_OPTION("--help", show_help, 1),
+    FUSE_OPTION("-V", show_version, 1),
     FUSE_OPTION("--version", show_version, 1),
     FUSE_OPT_END
 };
 
 static void show_help(const char *progname) {
-    printf("HERMES: sHallow dirEctory stRucture Many-filE fileSystem\n");
-    printf("usage: %s [options] <mountpoint>\n", progname);
+    printf("usage: %s [options] <mountpoint>\n\n", progname);
     printf(
         "HERMES specific options:\n"
         "    --metadev=<s>       Path of file/device to store metadata\n"
@@ -76,13 +76,12 @@ int main(int argc, char *argv[]) {
         show_help(argv[0]);
         assert(fuse_opt_add_arg(&args, "--help") == 0);
         args.argv[0][0] = '\0';
-    } else if(hermes::opts.show_version) {
+    } else if (hermes::opts.show_version) {
         show_version();
         assert(fuse_opt_add_arg(&args, "--version") == 0);
-        args.argv[0][0] = '\0';
     }
 
-    ret = fuse_main(argc, argv, &hermes_oper, nullptr);
+    ret = fuse_main(args.argc, args.argv, &hermes_oper, nullptr);
     fuse_opt_free_args(&args);
     return ret;
 }
