@@ -39,7 +39,8 @@ static struct fuse_opt option_spec[] = {
     FUSE_OPTION("-h", show_help), FUSE_OPTION("--help", show_help), FUSE_OPT_END};
 
 static void show_help(const char *progname) {
-    printf("HERMES: sHallow dirEctory stRucture Many-filE fileSystem\n\n");
+    printf("HERMES: sHallow dirEctory stRucture Many-filE fileSystem\n");
+    printf("Compiled with backend: %s\n\n", HERMES_BACKEND);
     printf("usage: %s [options] <mountpoint>\n", progname);
     printf(
         "File-system specific options:\n"
