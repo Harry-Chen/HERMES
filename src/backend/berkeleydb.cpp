@@ -1,12 +1,17 @@
 #include "berkeleydb.h"
 
-#include <string.h>
 #include <memory.h>
 #include <stdlib.h>
+#include <string.h>
 
 const char *COUNTER_KEY = "\xca\xfe";
 
+// backward compatible
+#if DB_VERSION_FAMILY <= 11
+int compare_path(Db *_dbp, const Dbt *a, const Dbt *b) {
+#else
 int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *) {
+#endif
     auto ad = (char *)a->get_data();
     auto bd = (char *)b->get_data();
     for (size_t i = 0; i < a->get_size() && i < b->get_size(); ++i) {
@@ -32,7 +37,6 @@ BDB::BDB(hermes::options opts) {
 
     metadata->open(nullptr, opts.filedev, "hermes", DB_BTREE, DB_CREATE, 0755);
     content->open(nullptr, opts.metadev, "hermes", DB_BTREE, DB_CREATE, 0755);
-
 
     Dbt key((void *)COUNTER_KEY, strlen(COUNTER_KEY));
     Dbt data;
@@ -72,7 +76,7 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
         Dbt insert_value(buffer, offset + content.size());
         this->content->put(nullptr, &insert_key, &insert_value, 0);
 
-        delete [] buffer;
+        delete[] buffer;
         return write_result::Ok;
     } else {
         // new
@@ -83,7 +87,7 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
         Dbt insert_value(buffer, offset + content.size());
         this->content->put(nullptr, &insert_key, &insert_value, 0);
 
-        delete [] buffer;
+        delete[] buffer;
         return write_result::Ok;
     }
 }
