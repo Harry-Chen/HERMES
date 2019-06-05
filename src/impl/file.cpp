@@ -1,9 +1,11 @@
+#include <unistd.h>
 #include "hermes.h"
 #include "impl/common.h"
 
 #include <cstring>
 
 #include <chrono>
+#include <unordered_map>
 
 using namespace std;
 
@@ -15,8 +17,10 @@ int getattr(const char *path, struct stat *stbuf) {
 
     // Is root
     if (strcmp(path, "/") == 0) {
+        memset(stbuf, 0, sizeof(struct stat));
         stbuf->st_mode = S_IFDIR | 0755;
         stbuf->st_nlink = 1;
+        stbuf->st_uid = getuid();
         return 0;
     }
 

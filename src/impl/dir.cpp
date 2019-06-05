@@ -44,6 +44,8 @@ int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
 
     auto fctx = fuse_get_context();
     auto ctx = static_cast<hermes::impl::context *>(fctx->private_data);
+    filler(buf, ".", NULL, 0);
+    filler(buf, "..", NULL, 0);
     ctx->backend->iterate_directory(
         pathView, [&](const std::string_view &fp, const hermes::metadata &metadata) -> void {
             const size_t copied = fp.substr(pathView == "/" ? pathView.size() : pathView.size() + 1,
