@@ -4,9 +4,9 @@
 #include "backend/leveldb.h"
 
 namespace hermes::impl {
-    /**
-     * The selected context
-     */
-    using context = hermes::basic_context<hermes::backend::LDB>;
-}
-#endif // __IMPL_COMMON_H__
+/**
+ * The selected context
+ */
+using context = hermes::basic_context<hermes::backend::LDB>;
+}  // namespace hermes::impl
+#endif  // __IMPL_COMMON_H__
