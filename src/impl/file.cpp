@@ -6,11 +6,13 @@
 
 #include <chrono>
 #include <unordered_map>
+#include <shared_mutex>
 
 using namespace std;
 
 namespace hermes::impl {
 static unordered_map<uint64_t, uint64_t> pending_size;
+static shared_mutex size_mutex;
 
 int getattr(const char *path, struct stat *stbuf) {
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
@@ -74,8 +76,10 @@ int truncate(const char *path, off_t size) {
     }
 
     resp->size = size;
-    pending_size[resp->id] = size;
 
+    unique_lock lock(size_mutex);
+
+    pending_size[resp->id] = size;
     ctx->backend->put_metadata(path, *resp);
 
     return 0;
@@ -93,6 +97,7 @@ int open(const char *path, struct fuse_file_info *fi) {
         return -EISDIR;
     } else {
         fi->fh = resp->id;
+        unique_lock lock(size_mutex);
         if (pending_size.find(resp->id) == pending_size.end()) pending_size[resp->id] = resp->size;
         // cout<<">> FileID: "<<resp->id<<endl;
         return 0;
@@ -120,11 +125,15 @@ int read(const char *path, char *buf, size_t size, off_t offset, struct fuse_fil
     }
     */
 
+    shared_lock lock(size_mutex);
     if (offset + size > pending_size[fi->fh]) {
         if (offset > pending_size[fi->fh]) return 0;
 
         size = pending_size[fi->fh] - offset;
     }
+
+    // File size in store will never be shorten, so we can safely unlock here
+    lock.unlock();
 
     ctx->backend->fetch_content(fi->fh, offset, size, buf);
     return size;
@@ -151,6 +160,8 @@ int write(const char *path, const char *buf, size_t size, off_t offset, struct f
     */
 
     uint64_t new_size = offset + size;
+
+    unique_lock lock(size_mutex);
     uint64_t &saved_size = pending_size[fi->fh];  // uint64_t will be default-initialized into 0
     if (saved_size < new_size) saved_size = new_size;
 
@@ -158,8 +169,6 @@ int write(const char *path, const char *buf, size_t size, off_t offset, struct f
 }
 
 int release(const char *path, struct fuse_file_info *fi) {
-    auto saved_size = pending_size.find(fi->fh);
-    if (saved_size == pending_size.end()) return 0;
 
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
@@ -170,8 +179,19 @@ int release(const char *path, struct fuse_file_info *fi) {
 
     // Written
     mtresp->mtim = now;
+
+    shared_lock lock(size_mutex);
+    // It's highly unlikely that there is a race in release,
+    // (e.g., we open a file, and when releasing it, immediately open the file again and close it,
+    // then we need the second release call to go faster than the first one to trigger a race)
+    // so we delay the check for saved_size's presence
+    auto saved_size = pending_size.find(fi->fh);
+    if (saved_size == pending_size.end()) return 0;
+
     mtresp->size = saved_size->second;
-    pending_size.erase(saved_size);
+    // We are not erasing the saved_size from cache, since we will have to reload it again in future.
+    // Then we are able to use shared_lock here
+    // pending_size.erase(saved_size);
 
     ctx->backend->put_metadata(path, *mtresp);
     // cout<<"Write"<<endl;
@@ -201,7 +221,9 @@ int create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
     // TODO: lock
     // TODO: check permission and deal with errors
+    unique_lock lock(size_mutex);
     ctx->backend->put_metadata(path, mt);
+    lock.unlock();
 
     fi->fh = mt.id;
     pending_size[mt.id] = 0;
