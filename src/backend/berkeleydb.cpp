@@ -172,6 +172,9 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
 
         // Detect holes
         if (offset + (ptr - buf) < blkoff) {
+            if(blkoff - offset >= len)
+                break;
+
             memset(ptr, 0, blkoff - offset - (ptr - buf));
             ptr = buf + (blkoff - offset);
         }
