@@ -38,6 +38,7 @@ do
 		do
 			if [ ${BACKEND} != 'EXT4' ] ;then
 				mount_hermes ${HERMES} ${MOUNT_DIR}
+                sleep 3
 			fi
 			
 			# run benchmark and save results
