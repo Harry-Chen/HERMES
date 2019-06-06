@@ -28,6 +28,8 @@ cp test_zero mount/
 echo "Actual:"
 sha1sum mount/test_zero
 
+dd if=/dev/zero bs=4M count=16 | pv | dd of=mount/zero_file
+
 kill $ID
 
 ls -al mount/

@@ -83,7 +83,6 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
             Dbt db_value;
             if (!this->content->get(nullptr, &db_key, &db_value, 0)) {
                 // Holes? we don't want that
-                std::cout << "Warning: Write holes" << std::endl;
                 original = "";
             } else {
                 original.assign((char *)db_value.get_data(), db_value.get_size());
