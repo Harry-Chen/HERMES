@@ -190,7 +190,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
             // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
             // Write entire chunk
             const string_view chunk_view =
-                content.substr(blkoff - offset, blkoff - offset + DB_CHUNK_SIZE);
+                content.substr(blkoff - offset, DB_CHUNK_SIZE);
 
             // cout<<">> BACKEND: Data: "<<chunk_view<<endl;
             this->content->Put(leveldb::WriteOptions(), key,

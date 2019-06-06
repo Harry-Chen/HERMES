@@ -125,7 +125,7 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
             // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
             // Write entire chunk
             const std::string_view chunk_view =
-                content.substr(blkoff - offset, blkoff - offset + DB_CHUNK_SIZE);
+                content.substr(blkoff - offset, DB_CHUNK_SIZE);
 
             Dbt insert_key(key.data(), key.size());
             Dbt insert_value((void *)chunk_view.data(), chunk_view.size());
