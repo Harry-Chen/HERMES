@@ -61,35 +61,15 @@ uint64_t BDB::next_id() {
     return next;
 }
 write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view &content) {
-    // TODO: chunking
     uint64_t key_id = htobe64(id);
     Dbt key((void *)&key_id, sizeof(key_id));
     Dbt value;
-    if (this->content->get(nullptr, &key, &value, 0) == 0) {
-        // update
-        size_t new_size = std::max((size_t)value.get_size(), offset + content.size());
-        char *buffer = new char[new_size];
-        memcpy(buffer, value.get_data(), value.get_size());
-        memcpy(&buffer[offset], content.data(), content.size());
-
-        Dbt insert_key((void *)&key_id, sizeof(key_id));
-        Dbt insert_value(buffer, new_size);
-        this->content->put(nullptr, &insert_key, &insert_value, 0);
-
-        delete[] buffer;
-        return write_result::Ok;
-    } else {
-        // new
-        char *buffer = new char[offset + content.size()];
-        memcpy(&buffer[offset], content.data(), content.size());
-
-        Dbt insert_key((void *)&key_id, sizeof(key_id));
-        Dbt insert_value(buffer, offset + content.size());
-        this->content->put(nullptr, &insert_key, &insert_value, 0);
-
-        delete[] buffer;
-        return write_result::Ok;
-    }
+    value.set_data((void *)content.data());
+    value.set_doff(offset);
+    value.set_size(content.size());
+    value.set_flags(DB_DBT_PARTIAL);
+    this->content->put(nullptr, &key, &value, 0);
+    return write_result::Ok;
 }
 void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
     uint64_t key_id = htobe64(id);
