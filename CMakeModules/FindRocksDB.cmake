@@ -20,4 +20,27 @@ find_package_handle_standard_args(RocksDB DEFAULT_MSG RocksDB_INCLUDE_DIR RocksD
 if(ROCKSDB_FOUND)
     message(STATUS "Found RocksDB  (include: ${RocksDB_INCLUDE_DIR}, library: ${RocksDB_LIBRARIES})")
     mark_as_advanced(RocksDB_INCLUDE_DIR RocksDB_LIBRARIES)
+
+    if(EXISTS "${RocksDB_INCLUDE_DIR}/rocksdb/version.h")
+        file(STRINGS "${RocksDB_INCLUDE_DIR}/rocksdb/version.h" __version_lines
+                REGEX "#define ROCKSDB_[^V]+[ \t]+[0-9]+")
+
+        foreach(__line ${__version_lines})
+            if(__line MATCHES "[^k]+ROCKSDB_MAJOR[ \t]+([0-9]+)")
+                set(RocksDB_VERSION_MAJOR ${CMAKE_MATCH_1})
+            elseif(__line MATCHES "[^k]+ROCKSDB_MINOR[ \t]+([0-9]+)")
+                set(RocksDB_VERSION_MINOR ${CMAKE_MATCH_1})
+            elseif(__line MATCHES "[^k]+ROCKSDB_PATCH[ \t]+([0-9]+)")
+                set(RocksDB_VERSION_PATCH ${CMAKE_MATCH_1})
+            endif()
+        endforeach()
+
+        if(RocksDB_VERSION_MAJOR AND RocksDB_VERSION_MINOR AND RocksDB_VERSION_PATCH)
+            set(RocksDB_VERSION "${RocksDB_VERSION_MAJOR}.${RocksDB_VERSION_MINOR}.${RocksDB_VERSION_PATCH}")
+        else()
+            set(RocksDB_VERSION "Unknown")
+        endif()
+        mark_as_advanced(RocksDB_VERSION)
+    endif()
+
 endif()

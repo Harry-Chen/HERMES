@@ -34,15 +34,13 @@ hermes::options opts;
 #define FUSE_OPTION(t, p, v) \
     { t, offsetof(hermes::options, p), v }
 
-static struct fuse_opt option_spec[] = {
-    FUSE_OPTION("--metadev=%s", metadev, 0),
-    FUSE_OPTION("--filedev=%s", filedev, 0),
-    FUSE_OPTION("-h", show_help, 1),
-    FUSE_OPTION("--help", show_help, 1),
-    FUSE_OPTION("-V", show_version, 1),
-    FUSE_OPTION("--version", show_version, 1),
-    FUSE_OPT_END
-};
+static struct fuse_opt option_spec[] = {FUSE_OPTION("--metadev=%s", metadev, 0),
+                                        FUSE_OPTION("--filedev=%s", filedev, 0),
+                                        FUSE_OPTION("-h", show_help, 1),
+                                        FUSE_OPTION("--help", show_help, 1),
+                                        FUSE_OPTION("-V", show_version, 1),
+                                        FUSE_OPTION("--version", show_version, 1),
+                                        FUSE_OPT_END};
 
 static void show_help(const char *progname) {
     printf("usage: %s [options] <mountpoint>\n\n", progname);
@@ -60,7 +58,7 @@ static void show_help(const char *progname) {
 static void show_version() {
     printf("HERMES: sHallow dirEctory stRucture Many-filE fileSystem\n");
     printf("Compilation Time: %s %s\n", __DATE__, __TIME__);
-    printf("Key-Value Backend: %s\n", HERMES_BACKEND);
+    printf("Key-Value Backend: %s %s\n", HERMES_BACKEND, HERMES_BACKEND_VERSION);
     puts("");
 }
 

@@ -11,7 +11,7 @@ find_path(LevelDB_INCLUDE NAMES leveldb/db.h
 
 # Look for the library.
 find_library(LevelDB_LIBRARY NAMES leveldb
-  PATHS /usr/lib $ENV{LEVELDB_ROOT}/lib
+  PATHS $ENV{LEVELDB_ROOT}/lib /usr/lib
   DOC "Path to leveldb library." )
 
 include(FindPackageHandleStandardArgs)
@@ -37,6 +37,9 @@ if(LEVELDB_FOUND)
 
     if(LEVELDB_VERSION_MAJOR AND LEVELDB_VERSION_MINOR)
       set(LEVELDB_VERSION "${LEVELDB_VERSION_MAJOR}.${LEVELDB_VERSION_MINOR}")
+      mark_as_advanced(LEVELDB_VERSION)
+    else()
+      set(LEVELDB_VERION "Unknown")
     endif()
   endif()
 endif()

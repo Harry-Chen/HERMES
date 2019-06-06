@@ -50,7 +50,40 @@ class BDB {
      */
     template <typename F>
     inline void iterate_directory(const std::string_view &path, F accessor) {
+        Dbc *dbc = nullptr;
+        metadata->cursor(nullptr, &dbc, 0);
+        Dbt pathKey((void *)path.data(), path.size());
+        Dbt pathData;
+        dbc->get(&pathKey, &pathData, DB_SET);
 
+        Dbt key;
+        Dbt value;
+        if (path != "/") {
+            dbc->get(&key, &value, DB_NEXT);
+        } else {
+            dbc->get(&key, &value, DB_FIRST);
+        }
+        do {
+            std::string_view view((char *)key.get_data(), key.get_size());
+            if (view.size() <= path.size() || view.compare(0, path.size(), path) != 0) break;
+
+            if (path != "/" && view[path.size()] != '/') break;
+
+            auto mptr = reinterpret_cast<const hermes::metadata *>(value.get_data());
+
+            accessor(view, *mptr);
+
+            if (mptr->is_dir()) {
+                // Skip the entire subdirectory
+                std::string slug(view);
+                slug.append("/\x7F");
+                Dbt slugKey((void *)slug.data(), slug.size());
+                Dbt slugData;
+                dbc->get(&slugKey, &slugData, DB_SET_RANGE);
+                continue;
+            }
+        } while (dbc->get(&key, &value, DB_NEXT) == 0);
+        dbc->close();
     }
 
    private:

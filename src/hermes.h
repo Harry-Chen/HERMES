@@ -142,6 +142,7 @@ struct basic_context {
                   backend::DirectoryIterator<char *>> ::value);
 
     inline basic_context(const options &opts) : backend(new Backend(opts)){};
+    ~basic_context() { delete backend; }
 };
 
 namespace impl {

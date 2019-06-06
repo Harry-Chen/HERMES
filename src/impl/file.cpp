@@ -74,6 +74,7 @@ int truncate(const char *path, off_t size) {
     }
 
     resp->size = size;
+    pending_size[resp->id] = size;
 
     ctx->backend->put_metadata(path, *resp);
 
@@ -92,6 +93,7 @@ int open(const char *path, struct fuse_file_info *fi) {
         return -EISDIR;
     } else {
         fi->fh = resp->id;
+        if (pending_size.find(resp->id) == pending_size.end()) pending_size[resp->id] = resp->size;
         // cout<<">> FileID: "<<resp->id<<endl;
         return 0;
     }
@@ -117,6 +119,12 @@ int read(const char *path, char *buf, size_t size, off_t offset, struct fuse_fil
       return size;
     }
     */
+
+    if (offset + size > pending_size[fi->fh]) {
+        if (offset > pending_size[fi->fh]) return 0;
+
+        size = pending_size[fi->fh] - offset;
+    }
 
     ctx->backend->fetch_content(fi->fh, offset, size, buf);
     return size;
@@ -162,7 +170,7 @@ int release(const char *path, struct fuse_file_info *fi) {
 
     // Written
     mtresp->mtim = now;
-    if (saved_size->second > mtresp->size) mtresp->size = saved_size->second;
+    mtresp->size = saved_size->second;
     pending_size.erase(saved_size);
 
     ctx->backend->put_metadata(path, *mtresp);
@@ -194,6 +202,9 @@ int create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     // TODO: lock
     // TODO: check permission and deal with errors
     ctx->backend->put_metadata(path, mt);
+
+    fi->fh = mt.id;
+    pending_size[mt.id] = 0;
 
     // auto after = std::chrono::high_resolution_clock::now();
     // auto diff = after - before;
