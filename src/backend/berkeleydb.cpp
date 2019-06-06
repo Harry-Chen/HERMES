@@ -35,8 +35,8 @@ BDB::BDB(hermes::options opts) {
 
     metadata->set_bt_compare(compare_path);
 
-    metadata->open(nullptr, opts.filedev, "hermes", DB_BTREE, DB_CREATE, 0755);
-    content->open(nullptr, opts.metadev, "hermes", DB_BTREE, DB_CREATE, 0755);
+    metadata->open(nullptr, opts.metadev, "hermes", DB_BTREE, DB_CREATE, 0755);
+    content->open(nullptr, opts.filedev, "hermes", DB_BTREE, DB_CREATE, 0755);
 
     Dbt key((void *)COUNTER_KEY, strlen(COUNTER_KEY));
     Dbt data;
@@ -99,7 +99,7 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
     value.set_doff(offset);
     value.set_dlen(len);
     value.set_ulen(len);
-    value.set_flags(DB_DBT_PARTIAL);
+    value.set_flags(DB_DBT_PARTIAL | DB_DBT_USERMEM);
     this->content->get(nullptr, &key, &value, 0);
 }
 write_result BDB::put_metadata(const std::string_view &path, const hermes::metadata &metadata) {
