@@ -2,7 +2,9 @@
 #include "hermes.h"
 
 namespace hermes::impl {
-void *init(struct fuse_conn_info *conn) {
+void *init(struct fuse_conn_info *conn, struct fuse_config *cfg) {
+    (void) cfg;
+
     auto ctx = new hermes::impl::context(hermes::opts);
     return ctx;
 }

@@ -1,9 +1,9 @@
 #ifndef __HERMES_H__
 #define __HERMES_H__
 
-#define FUSE_USE_VERSION 26
+#define FUSE_USE_VERSION 30
 
-#include <fuse/fuse.h>
+#include <fuse3/fuse.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <functional>
@@ -146,23 +146,23 @@ struct basic_context {
 };
 
 namespace impl {
-    void *init(struct fuse_conn_info *conn);
+    void *init(struct fuse_conn_info *conn, struct fuse_config *cfg);
 
     void destroy(void *ctx);
 
-    int getattr(const char *path, struct stat *stbuf);
+    int getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi);
 
     int mkdir(const char *path, mode_t mode);
 
     int unlink(const char *path);
 
-    int rename(const char *from, const char *to);
+    int rename(const char *from, const char *to, unsigned int flags);
 
-    int chmod(const char *path, mode_t mode);
+    int chmod(const char *path, mode_t mode, struct fuse_file_info *fi);
 
-    int chown(const char *path, uid_t uid, gid_t gid);
+    int chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi);
 
-    int truncate(const char *path, off_t len);
+    int truncate(const char *path, off_t len, struct fuse_file_info *fi);
 
     int open(const char *path, struct fuse_file_info *fi);
 
@@ -175,10 +175,10 @@ namespace impl {
 
     int create(const char *path, mode_t mode, struct fuse_file_info *fi);
 
-    int utimens(const char *path, const struct timespec tv[2]);
+    int utimens(const char *path, const struct timespec tv[2], struct fuse_file_info *fi);
 
     int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
-                struct fuse_file_info *fi);
+                struct fuse_file_info *fi, enum fuse_readdir_flags);
 }  // namespace impl
 }  // namespace hermes
 

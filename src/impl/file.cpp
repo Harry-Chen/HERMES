@@ -14,7 +14,9 @@ namespace hermes::impl {
 static unordered_map<uint64_t, uint64_t> pending_size;
 static shared_mutex size_mutex;
 
-int getattr(const char *path, struct stat *stbuf) {
+int getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi) {
+    (void) fi;
+
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
     // Is root
@@ -36,7 +38,9 @@ int getattr(const char *path, struct stat *stbuf) {
     }
 }
 
-int chmod(const char *path, mode_t mode) {
+int chmod(const char *path, mode_t mode, struct fuse_file_info *fi) {
+    (void) fi;
+
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
     auto resp = ctx->backend->fetch_metadata(path);
 
@@ -51,7 +55,9 @@ int chmod(const char *path, mode_t mode) {
     return 0;
 }
 
-int chown(const char *path, uid_t uid, gid_t gid) {
+int chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi) {
+    (void) fi;
+
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
     auto resp = ctx->backend->fetch_metadata(path);
 
@@ -67,7 +73,9 @@ int chown(const char *path, uid_t uid, gid_t gid) {
     return 0;
 }
 
-int truncate(const char *path, off_t size) {
+int truncate(const char *path, off_t size, struct fuse_file_info *fi) {
+    (void) fi;
+
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
     auto resp = ctx->backend->fetch_metadata(path);
 
@@ -236,7 +244,9 @@ int create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     return 0;
 }
 
-int utimens(const char *path, const struct timespec tv[2]) {
+int utimens(const char *path, const struct timespec tv[2], struct fuse_file_info *fi) {
+    (void) fi;
+
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
     auto resp = ctx->backend->fetch_metadata(path);
 
@@ -261,10 +271,9 @@ int unlink(const char *path) {
     return -ENOENT;
 }
 
-int rename(const char *from, const char *to) {
+int rename(const char *from, const char *to, unsigned int flags) {
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
-    /*
     if(flags == RENAME_EXCHANGE) {
       auto oriFrom = ctx->backend->remove_metadata(from);
       if(!oriFrom) return -ENOENT;
@@ -284,18 +293,11 @@ int rename(const char *from, const char *to) {
       ctx->backend->put_metadata(to, *oriFrom);
       ctx->backend->put_metadata(from, *oriTo);
 
-      const auto contFrom = ctx->backend->remove_content(from);
-      const auto contTo = ctx->backend->remove_content(to);
-
-      if(contFrom) ctx->backend->put_content(to, *contFrom);
-      if(contTo) ctx->backend->put_content(from, *contTo);
-
       return 0;
     } else if(flags == RENAME_NOREPLACE) {
       if(ctx->backend->fetch_metadata(to))
         return -EEXIST;
     }
-    */
 
     auto original = ctx->backend->remove_metadata(from);
     if (!original) return -ENOENT;

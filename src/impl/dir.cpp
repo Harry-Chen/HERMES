@@ -35,7 +35,9 @@ int mkdir(const char *path, mode_t mode) {
 }
 
 int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
-            struct fuse_file_info *fi) {
+            struct fuse_file_info *fi, enum fuse_readdir_flags) {
+    //TODO: support offsets and plus mode
+ 
     (void)offset;  // Yes, we do not support offsets. (for now)
 
     char name[hermes::PATHNAME_LIMIT];
@@ -44,8 +46,8 @@ int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
 
     auto fctx = fuse_get_context();
     auto ctx = static_cast<hermes::impl::context *>(fctx->private_data);
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
+    filler(buf, ".", NULL, 0, (enum fuse_fill_dir_flags) 0);
+    filler(buf, "..", NULL, 0, (enum fuse_fill_dir_flags) 0);
     ctx->backend->iterate_directory(
         pathView, [&](const std::string_view &fp, const hermes::metadata &metadata) -> void {
             const size_t copied = fp.substr(pathView == "/" ? pathView.size() : pathView.size() + 1,
@@ -54,7 +56,7 @@ int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
             name[copied] = '\0';
 
             const auto stat = metadata.to_stat();
-            filler(buf, name, &stat, 0);
+            filler(buf, name, &stat, 0, FUSE_FILL_DIR_PLUS);
         });
 
     return 0;

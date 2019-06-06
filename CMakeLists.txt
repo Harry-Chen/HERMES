@@ -16,9 +16,9 @@ set(EXE HERMES)
 
 # find mandatory dependencies
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
-find_package(FUSE REQUIRED)
+find_package(FUSE3 REQUIRED)
 find_package(Threads REQUIRED)
-include_directories(${FUSE_INCLUDE})
+include_directories(${FUSE3_INCLUDE})
 
 
 # find KV backend
@@ -84,7 +84,7 @@ add_definitions("-DHERMES_BACKEND_VERSION=\"${BACKEND_VERSION}\"")
 # compile the executable
 add_executable(${EXE} ${SOURCES} ${HEADERS} src/utils.h)
 set_property(TARGET ${EXE} PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-target_link_libraries(${EXE} ${FUSE_LIBRARIES})
+target_link_libraries(${EXE} ${FUSE3_LIBRARIES})
 target_link_libraries(${EXE} ${CMAKE_THREAD_LIBS_INIT})
 
 
