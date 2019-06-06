@@ -253,7 +253,7 @@ void LDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
         if ((ptr - buf) == len) break;
     }
 
-    if (ptr - buf < len) memset(ptr, 0, len + (ptr - buf));
+    if (ptr - buf < len) memset(ptr, 0, len - (ptr - buf));
 
     return;
 }

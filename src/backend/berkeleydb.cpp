@@ -3,8 +3,10 @@
 #include <memory.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 const char *COUNTER_KEY = "\xca\xfe";
+const size_t DB_CHUNK_SIZE = 4096;
 
 // backward compatible
 #if DB_VERSION_FAMILY <= 11
@@ -61,26 +63,141 @@ uint64_t BDB::next_id() {
     return next;
 }
 write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view &content) {
-    uint64_t key_id = htobe64(id);
-    Dbt key((void *)&key_id, sizeof(key_id));
-    Dbt value;
-    value.set_data((void *)content.data());
-    value.set_doff(offset);
-    value.set_size(content.size());
-    value.set_flags(DB_DBT_PARTIAL);
-    this->content->put(nullptr, &key, &value, 0);
+    // TODO: make it work even if LEVELDB_CHUNK_SIZE changes. Needs to check the next offset entry
+    const uint64_t fromOffset = (offset / DB_CHUNK_SIZE) * DB_CHUNK_SIZE;
+
+    std::string strbeid, key;
+    std::string original;
+
+    for (uint64_t blkoff = fromOffset; blkoff < offset + content.size(); blkoff += DB_CHUNK_SIZE) {
+        uint64_t beid = htobe64(id);
+        uint64_t beoffset = htobe64(blkoff);
+
+        strbeid = std::string_view(reinterpret_cast<char *>(&beid), 8);
+        key = strbeid;
+        key += std::string_view(reinterpret_cast<char *>(&beoffset), 8);
+
+        if (blkoff < offset) {
+            // Writing from middle
+            Dbt db_key(key.data(), key.size());
+            Dbt db_value;
+            if (!this->content->get(nullptr, &db_key, &db_value, 0)) {
+                // Holes? we don't want that
+                std::cout << "Warning: Write holes" << std::endl;
+                original = "";
+            } else {
+                original.assign((char *)db_value.get_data(), db_value.get_size());
+            }
+
+            size_t len = DB_CHUNK_SIZE - (offset - blkoff);
+            if (len > content.size()) len = content.size();
+
+            original.resize(offset - blkoff, 0);
+            original += content.substr(0, len);
+
+            // cout<<">> BACKEND: Put first chunk: "<<id<<" @ "<<blkoff<<endl;
+            Dbt insert_key(key.data(), key.size());
+            Dbt insert_value(original.data(), original.size());
+            this->content->put(nullptr, &insert_key, &insert_value, 0);
+        } else if (blkoff + DB_CHUNK_SIZE > offset + content.size()) {
+            // Write into head
+            Dbt db_key(key.data(), key.size());
+            Dbt db_value;
+            if (!this->content->get(nullptr, &db_key, &db_value, 0)) {
+                original = "";
+            } else {
+                original.assign((char *)db_value.get_data(), db_value.get_size());
+            }
+
+            size_t len = content.size() + offset - blkoff;
+            if (original.size() < len) {
+                // Completely overwrite
+                const std::string_view chunk_view = content.substr(blkoff - offset);
+                Dbt insert_key(key.data(), key.size());
+                Dbt insert_value((void *)chunk_view.data(), chunk_view.size());
+                this->content->put(nullptr, &insert_key, &insert_value, 0);
+            } else {
+                original = std::string(content.substr(blkoff - offset)) + original.substr(len);
+                Dbt insert_key(key.data(), key.size());
+                Dbt insert_value((void *)original.data(), original.size());
+                this->content->put(nullptr, &insert_key, &insert_value, 0);
+            }
+        } else {
+            // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
+            // Write entire chunk
+            const std::string_view chunk_view =
+                content.substr(blkoff - offset, blkoff - offset + DB_CHUNK_SIZE);
+
+            Dbt insert_key(key.data(), key.size());
+            Dbt insert_value((void *)chunk_view.data(), chunk_view.size());
+            this->content->put(nullptr, &insert_key, &insert_value, 0);
+        }
+    }
+
     return write_result::Ok;
-}
+}  // namespace hermes::backend
+
 void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
-    uint64_t key_id = htobe64(id);
-    Dbt key((void *)&key_id, sizeof(key_id));
-    Dbt value;
-    value.set_data(buf);
-    value.set_doff(offset);
-    value.set_dlen(len);
-    value.set_ulen(len);
-    value.set_flags(DB_DBT_PARTIAL | DB_DBT_USERMEM);
-    this->content->get(nullptr, &key, &value, 0);
+    // TODO: make it work even if LEVELDB_CHUNK_SIZE changes. Needs to check the next offset entry
+    const uint64_t fromOffset = (offset / DB_CHUNK_SIZE) * DB_CHUNK_SIZE;
+
+    std::string strbeid, key;
+    uint64_t beid = htobe64(id);
+    uint64_t beoffset = htobe64(fromOffset);
+
+    char *ptr = buf;
+
+    strbeid = std::string_view(reinterpret_cast<char *>(&beid), 8);
+    key = strbeid;
+    key += std::string_view(reinterpret_cast<char *>(&beoffset), 8);
+
+    Dbc *dbc = nullptr;
+    content->cursor(nullptr, &dbc, 0);
+
+    Dbt seekKey((void *)key.data(), key.size());
+    Dbt seekData;
+    dbc->get(&seekKey, &seekData, DB_SET_RANGE);
+
+    Dbt dbKey = seekKey;
+    Dbt dbValue = seekData;
+
+    do {
+        uint64_t cid = be64toh(*reinterpret_cast<const uint64_t *>(dbKey.get_data()));
+        uint64_t blkoff =
+            be64toh(*reinterpret_cast<const uint64_t *>((char *)dbKey.get_data() + 8));
+
+        // cout<<">> BACKEND: Read chunk: "<<cid<<" @ "<<blkoff<<endl;
+        // cout<<">> BACKEND: Already read: "<<result.size()<<endl;
+
+        if (cid != id) break;
+
+        // Detect holes
+        if (offset + (ptr - buf) < blkoff) {
+            memset(ptr, 0, blkoff - offset - (ptr - buf));
+            ptr = buf + (blkoff - offset);
+        }
+
+        size_t innerOff = offset + (ptr - buf) - blkoff;
+        size_t innerLen = len - (ptr - buf);
+        if (innerLen > DB_CHUNK_SIZE - innerOff)
+            innerLen = DB_CHUNK_SIZE - innerOff;  // At most read chunk-size bytes
+
+        // cout<<">> BACKEND: Read off/len: "<<innerOff<<" [] "<<innerLen<<endl;
+
+        std::string_view value((char *)dbValue.get_data(), dbValue.get_size());
+        std::string_view view = value.substr(innerOff, innerLen);
+        view.copy(ptr, std::string::npos);
+        ptr += view.size();
+
+        if (view.size() < innerLen) {
+            memset(ptr, 0, innerLen - view.size());
+            ptr += innerLen - view.size();
+        }
+
+        if ((ptr - buf) == len) break;
+    } while (dbc->get(&dbKey, &dbValue, DB_NEXT) == 0);
+
+    if (ptr - buf < len) memset(ptr, 0, len - (ptr - buf));
 }
 write_result BDB::put_metadata(const std::string_view &path, const hermes::metadata &metadata) {
     Dbt key((void *)path.data(), path.size());
