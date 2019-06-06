@@ -55,7 +55,6 @@ class BDB {
         Dbt pathKey((void *)path.data(), path.size());
         Dbt pathData;
         dbc->get(&pathKey, &pathData, DB_SET);
-        std::cerr << "\t\t\tpath" << path << std::endl;
 
         Dbt key;
         Dbt value;
@@ -66,7 +65,6 @@ class BDB {
         }
         do {
             std::string_view view((char *)key.get_data(), key.get_size());
-            std::cerr << "\t\t\tview" << view << std::endl;
             if (view.size() <= path.size() || view.compare(0, path.size(), path) != 0) break;
 
             if (path != "/" && view[path.size()] != '/') break;

@@ -72,8 +72,8 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
         memcpy(buffer, value.get_data(), value.get_size());
         memcpy(&buffer[offset], content.data(), content.size());
 
-        Dbt insert_key((void *)&id, sizeof(id));
-        Dbt insert_value(buffer, offset + content.size());
+        Dbt insert_key((void *)&key_id, sizeof(key_id));
+        Dbt insert_value(buffer, new_size);
         this->content->put(nullptr, &insert_key, &insert_value, 0);
 
         delete[] buffer;
@@ -83,7 +83,7 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
         char *buffer = new char[offset + content.size()];
         memcpy(&buffer[offset], content.data(), content.size());
 
-        Dbt insert_key((void *)&id, sizeof(id));
+        Dbt insert_key((void *)&key_id, sizeof(key_id));
         Dbt insert_value(buffer, offset + content.size());
         this->content->put(nullptr, &insert_key, &insert_value, 0);
 
@@ -97,7 +97,9 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
     Dbt value;
     value.set_data(buf);
     value.set_doff(offset);
+    value.set_dlen(len);
     value.set_ulen(len);
+    value.set_flags(DB_DBT_PARTIAL);
     this->content->get(nullptr, &key, &value, 0);
 }
 write_result BDB::put_metadata(const std::string_view &path, const hermes::metadata &metadata) {
