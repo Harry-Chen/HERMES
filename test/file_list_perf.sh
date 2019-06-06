@@ -46,8 +46,11 @@ do
 		RESULT_FILE=../results/${BACKEND}_create-file_${FILES}.txt
         echo "Create files cost:" > ${RESULT_FILE}
         { time ../fast_create $FILES; } 2>> ${RESULT_FILE}
-		echo "List files cost:" >> ${RESULT_FILE}
+		echo "Enumerate files cost:" >> ${RESULT_FILE}
 		{ time ls -f; } > /dev/null 2>> ${RESULT_FILE}
+		echo "List files with attr cost:" >> ${RESULT_FILE}
+		{ time ls -lf; } > /dev/null 2>> ${RESULT_FILE}
+
 		cd ..
 
 		if [ ${BACKEND} != 'EXT4' ] ;then

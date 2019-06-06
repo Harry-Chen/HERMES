@@ -135,11 +135,13 @@ struct basic_context {
     ASSERT_HAS_MEMBER_FUNC(Backend, fetch_content);
     ASSERT_HAS_MEMBER_FUNC(Backend, remove_content);
     ASSERT_HAS_MEMBER_FUNC(Backend, next_id);
+    /*
     // FIXME: clang++ does not report errors even if all specified overloads do not compile
     static_assert(HAS_MULTIPLE_GENERIC_MEMBER_FUNC_CHECKER_NAME(iterate_directory) < Backend,
                   backend::DirectoryIterator<std::string_view>,
                   backend::DirectoryIterator<std::string>,
                   backend::DirectoryIterator<char *>> ::value);
+    */
 
     inline basic_context(const options &opts) : backend(new Backend(opts)){};
     ~basic_context() { delete backend; }

@@ -157,7 +157,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
             // Writing from middle
             if (!this->content->Get(leveldb::ReadOptions(), key, &original).ok()) {
                 // Holes? we don't want that
-                cout << "Warning: Write holes" << endl;
+                // cout << "Warning: Write holes" << endl;
                 original = "";
             }
 

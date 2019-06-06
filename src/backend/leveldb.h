@@ -81,11 +81,31 @@ class LDB {
      * F: (const std::string_view &path, const hermes::metadata &metadata) -> void
      */
     template <typename F>
-    inline void iterate_directory(const std::string_view &path, F accessor) {
+    inline void iterate_directory(const std::string_view &path, off_t skip, std::optional<std::string> last_path, F accessor) {
         std::unique_ptr<leveldb::Iterator> it(this->metadata->NewIterator(leveldb::ReadOptions()));
-        const leveldb::Slice pathSlice(path.data(), path.length());
-        it->Seek(pathSlice);  // Ignores self
-        if (path != "/") it->Next();
+        if(!last_path) {
+            const leveldb::Slice pathSlice(path.data(), path.length());
+            it->Seek(pathSlice);  // Ignores self
+            if (path != "/") it->Next();
+        } else {
+            it->Seek(*last_path);
+            if(!it->Valid()) {
+                std::cout<<"WTF"<<std::endl;
+            }
+
+            auto mptr = reinterpret_cast<const hermes::metadata *>(it->value().data());
+
+            if (mptr->is_dir()) {
+                // Skip the entire subdirectory
+                last_path->append("/\x7F");
+                // std::cout<<"Jumping to "<<slug<<std::endl;
+                it->Seek(*last_path);
+            } else {
+                it->Next();
+            }
+
+            skip = 0;
+        }
 
         for (; it->Valid();) {
             auto key = it->key();
@@ -104,7 +124,12 @@ class LDB {
 
             auto mptr = reinterpret_cast<const hermes::metadata *>(it->value().data());
 
-            accessor(view, *mptr);
+            if(skip == 0) {
+                if(!accessor(view, *mptr))
+                    break;
+            } else {
+                --skip;
+            }
 
             if (mptr->is_dir()) {
                 // Skip the entire subdirectory
