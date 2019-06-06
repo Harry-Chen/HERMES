@@ -4,10 +4,6 @@
 
 #include "vedis.h"
 
-#include <cassert>
-#include <string>
-#include <string_view>
-
 using namespace std;
 
 const size_t VEDIS_CHUNK_SIZE = 4096;
@@ -44,9 +40,7 @@ write_result Vedis::put_metadata(const string_view &path, const hermes::metadata
         // A special type of metadata, which is a list of all children
         // of a directory, is represented by ('D' + directory_name).
         auto splitted = split_parent(path);
-        auto child = splitted.second;
-        string dkey = "D";
-        dkey += splitted.first;
+        auto dkey = splitted.first, child = splitted.second;
 
         // Value length is set to child.length() + 1.
         // This means the separator between entries is either a slash '/'
@@ -102,7 +96,7 @@ write_result Vedis::put_content(uint64_t id, size_t offset, const string_view &c
             if (vedis_kv_fetch(this->content, key.data(), key.length(), block, &bufSize))
                 memset(block, 0, sizeof(block));
 
-            int len = VEDIS_CHUNK_SIZE - (offset - blkoff);
+            size_t len = VEDIS_CHUNK_SIZE - (offset - blkoff);
             if (len > cont.length())
                 len = cont.length();
             memcpy(block + offset - blkoff, cont.data(), len);
@@ -114,7 +108,7 @@ write_result Vedis::put_content(uint64_t id, size_t offset, const string_view &c
             if (vedis_kv_fetch(this->content, key.data(), key.length(), block, &bufSize))
                 memset(block, 0, sizeof(block));
 
-            int len = offset + cont.length() - blkoff;
+            size_t len = offset + cont.length() - blkoff;
             memcpy(block, cont.data() + blkoff - offset, len);
             if (vedis_kv_store(this->content, key.data(), key.length(), block, VEDIS_CHUNK_SIZE))
                 return write_result::UnknownFailure;
@@ -152,7 +146,7 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
         key += string_view(reinterpret_cast<char *>(&blkoff), 8);
 
         if (__builtin_expect(blkoff < offset, 0)) {
-            int _len = VEDIS_CHUNK_SIZE - (offset - blkoff);
+            size_t _len = VEDIS_CHUNK_SIZE - (offset - blkoff);
             if (_len > len)
                 _len = len;
 
@@ -164,7 +158,7 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
                 memset(buf, 0, len);
         }
         else if (__builtin_expect(blkoff + VEDIS_CHUNK_SIZE > offset + len, 0)) {
-            int _len = offset + len - blkoff;
+            size_t _len = offset + len - blkoff;
 
             userData.dst = buf + blkoff - offset;
             userData.srcoff = 0;

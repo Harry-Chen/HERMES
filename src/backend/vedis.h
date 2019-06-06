@@ -10,14 +10,16 @@
 #include "vedis/vedis.h"
 
 #include <cstring>
+#include <cassert>
+#include <string>
 
 namespace hermes::backend {
 
 static inline auto split_parent(const std::string_view &path)
 {
     size_t pEnd = path.length() - 1;
-    if (path[pEnd] == '/')
-        --pEnd;
+    assert(path[pEnd] == '/');
+    --pEnd;
     size_t pos = path.find_last_of('/', pEnd);
     return make_pair(path.substr(0, pos), path.substr(pos + 1, pEnd - pos));
 }
@@ -36,7 +38,7 @@ template <typename F>
 static inline int iterateCallback(const void *pData, unsigned int pLen, void *_userData) {
     auto userData = reinterpret_cast<VedisUserData<F> *>(_userData);
     auto str = reinterpret_cast<const char *>(pData);
-    int i = 0, j;
+    unsigned int i = 0, j;
     while (i < pLen) {
         for (j = i + 1; j < pLen && str[j] && str[j] != '/'; j++);
         if (j == pLen) {
@@ -79,8 +81,11 @@ public:
     template <typename F>
     inline void iterate_directory(const std::string_view &path, F accessor)
     {
-        std::string dkey = "D";
-        dkey += path;
+        // The idea here is, if FUSE assures a slash after every path,
+        // then we might use a path w/o the final slash as a different
+        // path key, to avoid overhead of building strings like "D"+path.
+        assert(path[path.length() - 1] == '/');
+        std::string_view dkey = path.substr(0, path.length() - 1);
 
         VedisUserData<F> userData;
         userData.that = this->metadata;
