@@ -5,13 +5,10 @@
 #include "vedis.h"
 
 #include <cassert>
-#include <cstring>
 #include <string>
 #include <string_view>
 
 using namespace std;
-
-const int BASE64_BUF_SIZE = 128;
 
 const size_t VEDIS_CHUNK_SIZE = 4096;
 const char *VEDIS_NEXT_ID_KEY = "#id";
@@ -41,35 +38,56 @@ uint64_t Vedis::next_id()
     return next;
 }
 
-write_result Vedis::put_metadata(const std::string_view &path, const hermes::metadata &meta)
+write_result Vedis::put_metadata(const string_view &path, const hermes::metadata &meta)
 {
-    if (!vedis_kv_store(this->metadata, path.data(), path.length(), &meta, sizeof(hermes::metadata)))
-        return write_result::Ok;
-    else
+    if (path.length() > 1) {    // not root
+        // A special type of metadata, which is a list of all children
+        // of a directory, is represented by ('D' + directory_name).
+        auto splitted = split_parent(path);
+        auto child = splitted.second;
+        string dkey = "D";
+        dkey += splitted.first;
+
+        // Value length is set to child.length() + 1.
+        // This means the separator between entries is either a slash '/'
+        // or an empty character '\0'.
+        if (vedis_kv_fetch_callback(this->metadata, path.data(), path.length(),
+                                    [](const void *pData, unsigned int pLen, void *userData) -> int {
+                                        return VEDIS_OK;
+                                    }, NULL) == VEDIS_NOTFOUND)
+            if (vedis_kv_append(this->metadata, dkey.data(), dkey.length(), child.data(), child.length() + 1))
+                return write_result::UnknownFailure;
+    }
+    if (vedis_kv_store(this->metadata, path.data(), path.length(), &meta, sizeof(hermes::metadata)))
         return write_result::UnknownFailure;
+    return write_result::Ok;
 }
 
-optional<hermes::metadata> Vedis::fetch_metadata(const std::string_view &path)
+optional<hermes::metadata> Vedis::fetch_metadata(const string_view &path)
 {
     hermes::metadata result;
     vedis_int64 bufSize = sizeof(hermes::metadata);
 
-    if (!vedis_kv_fetch(this->metadata, path.data(), path.length(), &result, &bufSize))
-        return {result};
-    else
+    if (vedis_kv_fetch(this->metadata, path.data(), path.length(), &result, &bufSize))
         return {};
+    return {result};
 }
 
-optional<hermes::metadata> Vedis::remove_metadata(const std::string_view &path)
+optional<hermes::metadata> Vedis::remove_metadata(const string_view &path)
 {
     auto fetched = this->fetch_metadata(path);
-    if (!vedis_kv_delete(this->metadata, path.data(), path.length()))
-        return fetched;
-    else
+    if (vedis_kv_delete(this->metadata, path.data(), path.length()))
         return {};
+
+    auto splitted = split_parent(path);
+    string dkey = "D";
+    dkey += splitted.first;
+    if (vedis_kv_delete(this->metadata, dkey.data(), dkey.length()))
+        return {};
+    return fetched;
 }
 
-write_result Vedis::put_content(uint64_t id, size_t offset, const std::string_view &cont)
+write_result Vedis::put_content(uint64_t id, size_t offset, const string_view &cont)
 {
     static uint8_t block[VEDIS_CHUNK_SIZE + 5];
     string key;
@@ -102,7 +120,7 @@ write_result Vedis::put_content(uint64_t id, size_t offset, const std::string_vi
                 return write_result::UnknownFailure;
         }
         else {
-            const string_view cv = content.substr(blkoff - offset, blkoff - offset + DB_CHUNK_SIZE);
+            const string_view cv = cont.substr(blkoff - offset, blkoff - offset + VEDIS_CHUNK_SIZE);
             if (vedis_kv_store(this->content, key.data(), key.length(), cv.data(), cv.length()))
                 return write_result::UnknownFailure;
         }
@@ -110,32 +128,48 @@ write_result Vedis::put_content(uint64_t id, size_t offset, const std::string_vi
     return write_result::Ok;
 }
 
+struct VedisFetchUserData {
+    void *dst;
+    int srcoff;
+    int len;
+};
+
+static int fetchCallback(const void *pData, unsigned int pLen, void *_userData)
+{
+    auto userData = reinterpret_cast<VedisFetchUserData *>(_userData);
+    memcpy(userData->dst, pData + userData->srcoff, userData->len);
+    return VEDIS_OK;
+}
+
 void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
 {
+    VedisFetchUserData userData;
     string key;
 
     off_t fromOffset = offset / VEDIS_CHUNK_SIZE * VEDIS_CHUNK_SIZE;
-    for (off_t blkoff = fromOffset; blkoff < offset + cont.size(); blkoff += VEDIS_CHUNK_SIZE) {
+    for (off_t blkoff = fromOffset; blkoff < offset + len; blkoff += VEDIS_CHUNK_SIZE) {
         key = string_view(reinterpret_cast<char *>(&id), 8);
         key += string_view(reinterpret_cast<char *>(&blkoff), 8);
 
         if (__builtin_expect(blkoff < offset, 0)) {
-            int len = VEDIS_CHUNK_SIZE - (offset - blkoff);
-            if (len > cont.length())
-                len = cont.length();
+            int _len = VEDIS_CHUNK_SIZE - (offset - blkoff);
+            if (_len > len)
+                _len = len;
 
-            auto xCallback = [&](void *pData, int iDataLen, void *userData) -> int {
-                memcpy(buf, pData + offset - blkoff, len);
-            };
-            if (vedis_kv_fetch_callback(this->content, key.data(), key.length(), xCallback, NULL))
+            userData.dst = buf;
+            userData.srcoff = offset - blkoff;
+            userData.len = _len;
+
+            if (vedis_kv_fetch_callback(this->content, key.data(), key.length(), fetchCallback, &userData))
                 memset(buf, 0, len);
         }
-        else if (__builtin_expect(blkoff + VEDIS_CHUNK_SIZE > offset + cont.length(), 0)) {
-            int len = offset + cont.length() - blkoff;
-            auto xCallback = [&](void *pData, int iDataLen, void *userData) -> int {
-                memcpy(buf + blkoff - offset, pData, len);
-            };
-            if (vedis_kv_fetch_callback(this->content, key.data(), key.length(), xCallback, NULL))
+        else if (__builtin_expect(blkoff + VEDIS_CHUNK_SIZE > offset + len, 0)) {
+            int _len = offset + len - blkoff;
+
+            userData.dst = buf + blkoff - offset;
+            userData.srcoff = 0;
+            userData.len = _len;
+            if (vedis_kv_fetch_callback(this->content, key.data(), key.length(), fetchCallback, &userData))
                 memset(buf + blkoff - offset, 0, len);
         }
         else {
@@ -144,6 +178,12 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
                 memset(buf + blkoff - offset, 0, VEDIS_CHUNK_SIZE);
         }
     }
+}
+
+write_result Vedis::remove_content(uint64_t id)
+{
+    // now ignore.
+    return write_result::Ok;
 }
 
 }   // namespace hermes::backend
