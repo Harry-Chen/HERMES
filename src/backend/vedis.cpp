@@ -38,13 +38,14 @@ write_result Vedis::put_metadata(const string_view &path, const hermes::metadata
 {
     if (path.length() > 1) {    // not root
         // A special type of metadata, which is a list of all children
-        // of a directory, is represented by ('D' + directory_name).
+        // of a directory, is represented by ("D"+directory_name).
         auto splitted = split_parent(path);
-        auto dkey = splitted.first, child = splitted.second;
+        std::string dkey = "D";
+        dkey += splitted.first;
+        auto child = splitted.second;
 
         // Value length is set to child.length() + 1.
-        // This means the separator between entries is either a slash '/'
-        // or an empty character '\0'.
+        // This means the separator between entries is either '/' or '\0'.
         if (vedis_kv_fetch_callback(this->metadata, path.data(), path.length(),
                                     [](const void *pData, unsigned int pLen, void *userData) -> int {
                                         return VEDIS_OK;

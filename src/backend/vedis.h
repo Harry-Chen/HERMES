@@ -18,8 +18,8 @@ namespace hermes::backend {
 static inline auto split_parent(const std::string_view &path)
 {
     size_t pEnd = path.length() - 1;
-    assert(path[pEnd] == '/');
-    --pEnd;
+    if (path[pEnd] == '/')
+        --pEnd;
     size_t pos = path.find_last_of('/', pEnd);
     return make_pair(path.substr(0, pos), path.substr(pos + 1, pEnd - pos));
 }
@@ -81,11 +81,8 @@ public:
     template <typename F>
     inline void iterate_directory(const std::string_view &path, F accessor)
     {
-        // The idea here is, if FUSE assures a slash after every path,
-        // then we might use a path w/o the final slash as a different
-        // path key, to avoid overhead of building strings like "D"+path.
-        assert(path[path.length() - 1] == '/');
-        std::string_view dkey = path.substr(0, path.length() - 1);
+        std::string dkey = "D";
+        dkey += path;
 
         VedisUserData<F> userData;
         userData.that = this->metadata;
