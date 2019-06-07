@@ -78,6 +78,10 @@ int main(int argc, char *argv[]) {
         show_version();
         assert(fuse_opt_add_arg(&args, "--version") == 0);
     }
+#ifdef HERMES_BACKEND_BERKELEYDB
+    // BerkeleyDB needs to work single-threaded
+    assert(fuse_opt_add_arg(&args, "-s") == 0);
+#endif
 
     ret = fuse_main(args.argc, args.argv, &hermes_oper, nullptr);
     fuse_opt_free_args(&args);
