@@ -6,3 +6,5 @@ fallocate=none
 filesize=4k
 openfiles=1000
 
+[create-file]
+
