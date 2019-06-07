@@ -1,0 +1,7 @@
+direct=1
+size=1G
+ioengine=libaio
+iodepth=16
+runtime=20
+group_reporting=1
+

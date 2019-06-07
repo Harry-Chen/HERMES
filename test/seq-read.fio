@@ -2,12 +2,10 @@
 name=seq-read-${BS}
 filename=fio-seq-read
 rw=read
-direct=1
 numjobs=32
 bs=${BS}
-size=1G
-ioengine=libaio
-iodepth=16
+
+include glob-include.fio
 
 [seq-read]
 

@@ -2,10 +2,8 @@
 name=seq-write-${BS}
 filename=fio-seq-write
 rw=write
-direct=1
 bs=${BS}
-size=1G
-ioengine=libaio
-iodepth=16
+
+include glob-include.fio
 
 [seq-write]

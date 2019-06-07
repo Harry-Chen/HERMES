@@ -32,7 +32,7 @@ do
 
 	MOUNT_DIR=mount
 
-	for FIO_TEST in *.fio
+	for FIO_TEST in 'seq-read' 'seq-write' 'rand-read' 'rand-write'
 	do
 		for BS in '1k' '4k' '16k'
 		do
@@ -42,10 +42,10 @@ do
 			
 			# run benchmark and save results
 			cd ${MOUNT_DIR}
-			env BS=${BS} fio --group_reporting ../${FIO_TEST} | tee ../results/${BACKEND}_${FIO_TEST}_${BS}.txt
+			env BS=${BS} fio --group_reporting ../${FIO_TEST}.fio | tee ../results/${BACKEND}_${FIO_TEST}_${BS}.txt
 			cd ..
 			
-			if [ ${HERMES_PID} != '' ] ;then
+			if [ ${BACKEND} != 'EXT4' ] ;then
 				kill -s SIGTERM ${HERMES_PID}
 			fi
 			
