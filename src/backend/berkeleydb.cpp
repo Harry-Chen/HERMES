@@ -8,8 +8,8 @@
 
 const char *COUNTER_KEY = "\xca\xfe";
 const size_t DB_CHUNK_SIZE = 4096;
-const size_t DB_METADATA_CACHE = 32 * 1024;
-const size_t DB_CONTENT_CACHE = 128 * 1024;
+const size_t DB_METADATA_CACHE = 64 * 1024;
+const size_t DB_CONTENT_CACHE = 128 * 1024 * 1024;
 
 // backward compatible
 #if DB_VERSION_FAMILY <= 11
