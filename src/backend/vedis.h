@@ -12,6 +12,7 @@
 #include <cstring>
 #include <cassert>
 #include <string>
+#include <iostream>
 
 namespace hermes::backend {
 
@@ -21,7 +22,7 @@ static inline auto split_parent(const std::string_view &path)
     if (path[pEnd] == '/')
         --pEnd;
     size_t pos = path.find_last_of('/', pEnd);
-    return make_pair(path.substr(0, pos), path.substr(pos + 1, pEnd - pos));
+    return make_pair(path.substr(0, (pos ? pos : 1)), path.substr(pos + 1, pEnd - pos));
 }
 
 template <typename F>
@@ -47,6 +48,8 @@ static inline int iterateCallback(const void *pData, unsigned int pLen, void *_u
         }
         std::string fullPath;
         fullPath += userData->path;
+        if (fullPath[fullPath.length() - 1] != '/')
+            fullPath += "/";
         if (userData->pos) {
             fullPath += std::string_view(userData->buffer, userData->pos);
             userData->pos = 0;

@@ -6,7 +6,7 @@
 
 using namespace std;
 
-const size_t VEDIS_CHUNK_SIZE = 4096;
+const size_t VEDIS_CHUNK_SIZE = 2048;
 const char *VEDIS_NEXT_ID_KEY = "#id";
 
 namespace hermes::backend {
@@ -30,7 +30,7 @@ Vedis::~Vedis()
 uint64_t Vedis::next_id()
 {
     uint64_t next = counter++;
-    assert(!vedis_kv_store(this->metadata, VEDIS_NEXT_ID_KEY, -1, &counter, sizeof(uint64_t)));
+    assert(vedis_kv_store(this->metadata, VEDIS_NEXT_ID_KEY, -1, &counter, sizeof(uint64_t)) == VEDIS_OK);
     return next;
 }
 
@@ -92,7 +92,7 @@ write_result Vedis::put_content(uint64_t id, size_t offset, const string_view &c
         key = string_view(reinterpret_cast<char *>(&id), 8);
         key += string_view(reinterpret_cast<char *>(&blkoff), 8);
 
-        if (__builtin_expect(blkoff < offset, 0)) {
+        if (__builtin_expect(blkoff <= offset, 0)) {
             vedis_int64 bufSize = VEDIS_CHUNK_SIZE;
             if (vedis_kv_fetch(this->content, key.data(), key.length(), block, &bufSize))
                 memset(block, 0, sizeof(block));
@@ -132,6 +132,7 @@ struct VedisFetchUserData {
 static int fetchCallback(const void *pData, unsigned int pLen, void *_userData)
 {
     auto userData = reinterpret_cast<VedisFetchUserData *>(_userData);
+    cout << "@callback: " << pLen << " " << userData->srcoff << " " << userData->len << endl;
     memcpy(userData->dst, pData + userData->srcoff, userData->len);
     return VEDIS_OK;
 }
@@ -146,7 +147,7 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
         key = string_view(reinterpret_cast<char *>(&id), 8);
         key += string_view(reinterpret_cast<char *>(&blkoff), 8);
 
-        if (__builtin_expect(blkoff < offset, 0)) {
+        if (__builtin_expect(blkoff <= offset, 0)) {
             size_t _len = VEDIS_CHUNK_SIZE - (offset - blkoff);
             if (_len > len)
                 _len = len;
@@ -155,8 +156,10 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
             userData.srcoff = offset - blkoff;
             userData.len = _len;
 
+            cout << "userData: " << userData.srcoff << " " << userData.len << endl;
+
             if (vedis_kv_fetch_callback(this->content, key.data(), key.length(), fetchCallback, &userData))
-                memset(buf, 0, len);
+                memset(buf, 0, _len);
         }
         else if (__builtin_expect(blkoff + VEDIS_CHUNK_SIZE > offset + len, 0)) {
             size_t _len = offset + len - blkoff;
@@ -165,7 +168,7 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
             userData.srcoff = 0;
             userData.len = _len;
             if (vedis_kv_fetch_callback(this->content, key.data(), key.length(), fetchCallback, &userData))
-                memset(buf + blkoff - offset, 0, len);
+                memset(buf + blkoff - offset, 0, _len);
         }
         else {
             vedis_int64 bufSize = VEDIS_CHUNK_SIZE;
