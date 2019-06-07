@@ -38,14 +38,14 @@ namespace hermes::backend {
 BDB::BDB(hermes::options opts) {
     mkdir(opts.metadev, 0755);
     metadataEnv = new DbEnv((int)0);
-    metadataEnv->open(opts.metadev, DB_CREATE | DB_INIT_MPOOL, 0755);
     metadataEnv->set_cachesize(0, DB_METADATA_CACHE, 1);
+    metadataEnv->open(opts.metadev, DB_CREATE | DB_INIT_MPOOL, 0755);
     metadata = new Db(metadataEnv, 0);
 
     mkdir(opts.filedev, 0755);
     contentEnv = new DbEnv((int)0);
-    contentEnv->open(opts.filedev, DB_CREATE | DB_INIT_MPOOL, 0755);
     contentEnv->set_cachesize(0, DB_CONTENT_CACHE, 1);
+    contentEnv->open(opts.filedev, DB_CREATE | DB_INIT_MPOOL, 0755);
     content = new Db(contentEnv, 0);
 
     metadata->set_bt_compare(compare_path);
