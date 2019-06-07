@@ -4,9 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <sys/stat.h>
 
 const char *COUNTER_KEY = "\xca\xfe";
 const size_t DB_CHUNK_SIZE = 4096;
+const size_t DB_METADATA_CACHE = 32 * 1024;
+const size_t DB_CONTENT_CACHE = 128 * 1024;
 
 // backward compatible
 #if DB_VERSION_FAMILY <= 11
@@ -32,13 +35,22 @@ int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *) {
 
 namespace hermes::backend {
 BDB::BDB(hermes::options opts) {
-    metadata = new Db(nullptr, 0);
-    content = new Db(nullptr, 0);
+    mkdir(opts.metadev, 0755);
+    metadataEnv = new DbEnv((int)0);
+    metadataEnv->open(opts.metadev, DB_CREATE | DB_INIT_MPOOL, 0755);
+    metadataEnv->set_cachesize(0, DB_METADATA_CACHE, 0);
+    metadata = new Db(metadataEnv, 0);
+
+    mkdir(opts.filedev, 0755);
+    contentEnv = new DbEnv((int)0);
+    contentEnv->open(opts.filedev, DB_CREATE | DB_INIT_MPOOL, 0755);
+    contentEnv->set_cachesize(0, DB_CONTENT_CACHE, 0);
+    content = new Db(contentEnv, 0);
 
     metadata->set_bt_compare(compare_path);
 
-    metadata->open(nullptr, opts.metadev, "hermes", DB_BTREE, DB_CREATE, 0755);
-    content->open(nullptr, opts.filedev, "hermes", DB_BTREE, DB_CREATE, 0755);
+    metadata->open(nullptr, "meta", "hermes", DB_BTREE, DB_CREATE, 0755);
+    content->open(nullptr, "content", "hermes", DB_BTREE, DB_CREATE, 0755);
 
     Dbt key((void *)COUNTER_KEY, strlen(COUNTER_KEY));
     Dbt data;

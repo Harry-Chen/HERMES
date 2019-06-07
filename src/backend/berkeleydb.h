@@ -87,7 +87,9 @@ class BDB {
     }
 
    private:
+    DbEnv *metadataEnv;
     Db *metadata;
+    DbEnv *contentEnv;
     Db *content;
 
     uint64_t counter;
