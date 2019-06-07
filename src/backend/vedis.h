@@ -45,17 +45,21 @@ public:
         std::string dkey = "D";
         dkey += path;
 
+        //std::cout << "iterating " << path << std::endl;
+
         vedis_value *result, *entry;
         vedis_exec_fmt(this->metadata, "SMEMBERS %s", dkey.data());
         vedis_exec_result(this->metadata, &result);
-        while ((entry = vedis_array_next_elem(result)) != 0) {
-            const char *entryStr = vedis_value_to_string(entry, 0);
+        while ((entry = vedis_array_next_elem(result)) != NULL) {
+            const char *entryStr = vedis_value_to_string(entry, NULL);
 
             std::string fullPath;
             fullPath += path;
             if (fullPath[fullPath.length() - 1] != '/')
                 fullPath += "/";
             fullPath += entryStr;
+
+            //std::cout << "iterated: " << fullPath << std::endl;
 
             hermes::metadata meta;
             vedis_int64 bufSize = sizeof(hermes::metadata);

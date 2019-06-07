@@ -44,9 +44,11 @@ write_result Vedis::put_metadata(const string_view &path, const hermes::metadata
         dkey += splitted.first;
         auto child = splitted.second;
 
+        //cout << splitted.first << " " << splitted.second << endl;
+
         // Value length is set to child.length() + 1.
         // This means the separator between entries is either '/' or '\0'.
-        vedis_exec_fmt(this->metadata, "SADD %s %s", dkey.data(), child.data());
+        vedis_exec_fmt(this->metadata, "SADD %s \"%s\"", dkey.data(), child.data());
     }
     if (vedis_kv_store(this->metadata, path.data(), path.length(), &meta, sizeof(hermes::metadata)))
         return write_result::UnknownFailure;
@@ -73,29 +75,26 @@ optional<hermes::metadata> Vedis::remove_metadata(const string_view &path)
     auto parent = splitted.first, child = splitted.second;
     string dkey = "D";
     dkey += parent;
-    vedis_exec_fmt(this->metadata, "SREM %s %s", dkey.data(), child.data());
+    vedis_exec_fmt(this->metadata, "SREM %s \"%s\"", dkey.data(), child.data());
     return fetched;
 }
 
 write_result Vedis::put_content(uint64_t id, size_t offset, const string_view &cont)
 {
     static uint8_t block[VEDIS_CHUNK_SIZE + 5];
-    // also use "D" here just like directories
-    string key, dkey;
-    dkey += string_view(reinterpret_cast<char *>(&id), 8);
 
     off_t fromOffset = offset / VEDIS_CHUNK_SIZE * VEDIS_CHUNK_SIZE;
-    for (off_t blkoff = fromOffset; blkoff < offset + cont.size(); blkoff += VEDIS_CHUNK_SIZE) {
-        auto offstr = string_view(reinterpret_cast<char *>(&blkoff), 8);
-        key = dkey;
-        key += offstr;
+    for (off_t blkoff = fromOffset; blkoff < offset + cont.length(); blkoff += VEDIS_CHUNK_SIZE) {
+        string key;
+        key += string_view(reinterpret_cast<char *>(&id), 8);
+        key += string_view(reinterpret_cast<char *>(&blkoff), 8);
 
-        if (__builtin_expect(blkoff <= offset, 0)) {
+        vedis_exec_fmt(this->content, "SADD %lu \"%lu\"", id, blkoff);
+
+        if (__builtin_expect(blkoff < offset, 0)) {
             vedis_int64 bufSize = VEDIS_CHUNK_SIZE;
-            if (vedis_kv_fetch(this->content, key.data(), key.length(), block, &bufSize)) {
-                vedis_kv_append(this->content, dkey.data(), dkey.length(), offstr.data(), offstr.length() + 1);
+            if (vedis_kv_fetch(this->content, key.data(), key.length(), block, &bufSize))
                 memset(block, 0, sizeof(block));
-            }
 
             size_t len = VEDIS_CHUNK_SIZE - (offset - blkoff);
             if (len > cont.length())
@@ -106,10 +105,8 @@ write_result Vedis::put_content(uint64_t id, size_t offset, const string_view &c
         }
         else if (__builtin_expect(blkoff + VEDIS_CHUNK_SIZE > offset + cont.length(), 0)) {
             vedis_int64 bufSize = VEDIS_CHUNK_SIZE;
-            if (vedis_kv_fetch(this->content, key.data(), key.length(), block, &bufSize)) {
-                vedis_kv_append(this->content, dkey.data(), dkey.length(), offstr.data(), 8);
+            if (vedis_kv_fetch(this->content, key.data(), key.length(), block, &bufSize))
                 memset(block, 0, sizeof(block));
-            }
 
             size_t len = offset + cont.length() - blkoff;
             memcpy(block, cont.data() + blkoff - offset, len);
@@ -117,13 +114,7 @@ write_result Vedis::put_content(uint64_t id, size_t offset, const string_view &c
                 return write_result::UnknownFailure;
         }
         else {
-            const string_view cv = cont.substr(blkoff - offset, blkoff - offset + VEDIS_CHUNK_SIZE);
-            if (vedis_kv_fetch_callback(this->metadata, dkey.data(), dkey.length(),
-                                        [](const void *pData, unsigned int pLen, void *userData) -> int {
-                                            return VEDIS_OK;
-                                        }, NULL) == VEDIS_NOTFOUND)
-                if (vedis_kv_append(this->metadata, dkey.data(), dkey.length(), offstr.data(), 8))
-                    return write_result::UnknownFailure;
+            const string_view cv = cont.substr(blkoff - offset, VEDIS_CHUNK_SIZE);
             if (vedis_kv_store(this->content, key.data(), key.length(), cv.data(), cv.length()))
                 return write_result::UnknownFailure;
         }
@@ -140,8 +131,13 @@ struct VedisFetchUserData {
 static int fetchCallback(const void *pData, unsigned int pLen, void *_userData)
 {
     auto userData = reinterpret_cast<VedisFetchUserData *>(_userData);
-    memcpy(userData->dst, pData + userData->srcoff, userData->len);
-    userData->dst += userData->len;
+    if (userData->len == 0)
+        return VEDIS_OK;
+    if (pLen > userData->len)
+        pLen = userData->len;
+    memcpy(userData->dst, pData + userData->srcoff, pLen);
+    userData->dst += pLen;
+    userData->len -= pLen;
     return VEDIS_OK;
 }
 
@@ -155,7 +151,7 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
         key = string_view(reinterpret_cast<char *>(&id), 8);
         key += string_view(reinterpret_cast<char *>(&blkoff), 8);
 
-        if (__builtin_expect(blkoff <= offset, 0)) {
+        if (__builtin_expect(blkoff < offset, 0)) {
             size_t _len = VEDIS_CHUNK_SIZE - (offset - blkoff);
             if (_len > len)
                 _len = len;
@@ -184,60 +180,26 @@ void Vedis::fetch_content(uint64_t id, size_t offset, size_t len, char *buf)
     }
 }
 
-struct VedisRemoveUserData {
-    char buffer[32];
-    int pos;
-
-    vedis *that;
-    uint64_t id;
-};
-
-static int removeCallback(const void *pData, unsigned int pLen, void *_userData)
-{
-    auto userData = reinterpret_cast<VedisRemoveUserData *>(_userData);
-    auto buf = reinterpret_cast<const char *>(pData);
-    auto dkey = string_view(reinterpret_cast<char *>(&userData->id), 8);
-
-    unsigned int i = 0;
-    if (userData->pos) {
-        memcpy(userData->buffer + userData->pos, pData, (i = 8 - userData->pos));
-
-        string key;
-        key += dkey;
-        key += string_view(reinterpret_cast<char *>(userData->buffer), 8);
-
-        vedis_kv_delete(userData->that, key.data(), key.length());
-        userData->pos = 0;
-    }
-    for (; i < pLen; i += 8) {
-        if (i + 8 <= pLen) {
-            string key;
-            key += dkey;
-            key += string_view(buf + i, 8);
-
-            vedis_kv_delete(userData->that, key.data(), key.length());
-        }
-        else {
-            memcpy(userData->buffer, buf + i, (userData->pos = pLen - i));
-            break;
-        }
-    }
-
-    return VEDIS_OK;
-}
-
 write_result Vedis::remove_content(uint64_t id)
 {
-    std::string dkey;
-    dkey += string_view(reinterpret_cast<char *>(&id), 8);
+    vedis_value *result, *entry;
+    vedis_exec_fmt(this->content, "SMEMBERS %lu", id);
+    vedis_exec_result(this->content, &result);
+    while ((entry = vedis_array_next_elem(result)) != NULL) {
+        uint64_t blkno = vedis_value_to_int64(entry);
 
-    VedisRemoveUserData userData;
+        string key;
+        key += string_view(reinterpret_cast<char *>(&id), 8);
+        key += string_view(reinterpret_cast<char *>(&blkno), 8);
+        vedis_kv_delete(this->content, key.data(), key.length());
+    }
 
-    userData.pos = 0;
-    userData.id = id;
-    userData.that = this->content;
+    vedis_exec_fmt(this->content, "SCARD %lu", id);
+    vedis_exec_result(this->content, &result);
+    int card = vedis_value_to_int(result);
+    while (card--)
+        vedis_exec_fmt(this->content, "SPOP %lu", id);
 
-    vedis_kv_fetch_callback(this->metadata, dkey.data(), dkey.length(), removeCallback, &userData);
     return write_result::Ok;
 }
 
