@@ -17,7 +17,7 @@ mount_hermes() {
 
 mkdir -p results
 
-for BACKEND in 'EXT4' 'LevelDB' 'RocksDB' 'BekerleyDB'
+for BACKEND in 'EXT4' 'LevelDB' 'RocksDB' 'BerkeleyDB' 'Vedis'
 do
 	if [ ${BACKEND} != 'EXT4' ] ;then
 		rm -rf backend/${BACKEND}
