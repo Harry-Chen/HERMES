@@ -3,17 +3,21 @@
 #include <memory.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <string>
 
 const char *COUNTER_KEY = "\xca\xfe";
 const size_t DB_CHUNK_SIZE = 4096;
+const size_t DB_METADATA_CACHE = 32 * 1024;
+const size_t DB_CONTENT_CACHE = 128 * 1024;
 
 // backward compatible
 #if DB_VERSION_FAMILY <= 11
-int compare_path(Db *_dbp, const Dbt *a, const Dbt *b) {
+int compare_path(Db *_dbp, const Dbt *a, const Dbt *b)
 #else
-int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *) {
+int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *)
 #endif
+{
     auto ad = (char *)a->get_data();
     auto bd = (char *)b->get_data();
     for (size_t i = 0; i < a->get_size() && i < b->get_size(); ++i) {
@@ -32,13 +36,22 @@ int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *) {
 
 namespace hermes::backend {
 BDB::BDB(hermes::options opts) {
-    metadata = new Db(nullptr, 0);
-    content = new Db(nullptr, 0);
+    mkdir(opts.metadev, 0755);
+    metadataEnv = new DbEnv((int)0);
+    metadataEnv->set_cachesize(0, DB_METADATA_CACHE, 1);
+    metadataEnv->open(opts.metadev, DB_CREATE | DB_INIT_MPOOL, 0755);
+    metadata = new Db(metadataEnv, 0);
+
+    mkdir(opts.filedev, 0755);
+    contentEnv = new DbEnv((int)0);
+    contentEnv->set_cachesize(0, DB_CONTENT_CACHE, 1);
+    contentEnv->open(opts.filedev, DB_CREATE | DB_INIT_MPOOL, 0755);
+    content = new Db(contentEnv, 0);
 
     metadata->set_bt_compare(compare_path);
 
-    metadata->open(nullptr, opts.metadev, "hermes", DB_BTREE, DB_CREATE, 0755);
-    content->open(nullptr, opts.filedev, "hermes", DB_BTREE, DB_CREATE, 0755);
+    metadata->open(nullptr, "meta", "hermes", DB_BTREE, DB_CREATE, 0755);
+    content->open(nullptr, "content", "hermes", DB_BTREE, DB_CREATE, 0755);
 
     Dbt key((void *)COUNTER_KEY, strlen(COUNTER_KEY));
     Dbt data;
@@ -125,7 +138,7 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
             // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
             // Write entire chunk
             const std::string_view chunk_view =
-                content.substr(blkoff - offset, blkoff - offset + DB_CHUNK_SIZE);
+                content.substr(blkoff - offset, DB_CHUNK_SIZE);
 
             Dbt insert_key(key.data(), key.size());
             Dbt insert_value((void *)chunk_view.data(), chunk_view.size());
@@ -172,8 +185,7 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
 
         // Detect holes
         if (offset + (ptr - buf) < blkoff) {
-            if(blkoff - offset >= len)
-                break;
+            if (blkoff - offset >= len) break;
 
             memset(ptr, 0, blkoff - offset - (ptr - buf));
             ptr = buf + (blkoff - offset);
