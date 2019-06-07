@@ -3,8 +3,8 @@
 #include <memory.h>
 #include <stdlib.h>
 #include <string.h>
-#include <string>
 #include <sys/stat.h>
+#include <string>
 
 const char *COUNTER_KEY = "\xca\xfe";
 const size_t DB_CHUNK_SIZE = 4096;
@@ -13,10 +13,11 @@ const size_t DB_CONTENT_CACHE = 128 * 1024;
 
 // backward compatible
 #if DB_VERSION_FAMILY <= 11
-int compare_path(Db *_dbp, const Dbt *a, const Dbt *b) {
+int compare_path(Db *_dbp, const Dbt *a, const Dbt *b)
 #else
-int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *) {
+int compare_path(Db *_dbp, const Dbt *a, const Dbt *b, size_t *)
 #endif
+{
     auto ad = (char *)a->get_data();
     auto bd = (char *)b->get_data();
     for (size_t i = 0; i < a->get_size() && i < b->get_size(); ++i) {
@@ -184,8 +185,7 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
 
         // Detect holes
         if (offset + (ptr - buf) < blkoff) {
-            if(blkoff - offset >= len)
-                break;
+            if (blkoff - offset >= len) break;
 
             memset(ptr, 0, blkoff - offset - (ptr - buf));
             ptr = buf + (blkoff - offset);
