@@ -5,8 +5,8 @@
 #include <cstring>
 
 #include <chrono>
-#include <unordered_map>
 #include <shared_mutex>
+#include <unordered_map>
 
 using namespace std;
 
@@ -168,7 +168,6 @@ int write(const char *path, const char *buf, size_t size, off_t offset, struct f
 }
 
 int release(const char *path, struct fuse_file_info *fi) {
-
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
     auto mtresp = ctx->backend->fetch_metadata(path);
@@ -188,9 +187,8 @@ int release(const char *path, struct fuse_file_info *fi) {
     if (saved_size == pending_size.end()) return 0;
 
     mtresp->size = saved_size->second;
-    // We are not erasing the saved_size from cache, since we will have to reload it again in future.
-    // Then we are able to use shared_lock here
-    // pending_size.erase(saved_size);
+    // We are not erasing the saved_size from cache, since we will have to reload it again in
+    // future. Then we are able to use shared_lock here pending_size.erase(saved_size);
 
     ctx->backend->put_metadata(path, *mtresp);
     // cout<<"Write"<<endl;
@@ -319,7 +317,7 @@ int readlink(const char *path, char *buf, size_t size) {
     }
 
     size_t read_size = size - 1;
-    if(read_size > resp->size) read_size = resp->size;
+    if (read_size > resp->size) read_size = resp->size;
     ctx->backend->fetch_content(resp->id, 0, read_size, buf);
     buf[read_size] = 0;
     return 0;

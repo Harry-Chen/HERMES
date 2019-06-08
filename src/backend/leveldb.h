@@ -20,8 +20,8 @@
 namespace hermes::backend {
 class PathComparator : public leveldb::Comparator {
     int Compare(const leveldb::Slice &a, const leveldb::Slice &b) const {
-        uint8_t *ad = (uint8_t*) a.data();
-        uint8_t *bd = (uint8_t*) b.data();
+        uint8_t *ad = (uint8_t *)a.data();
+        uint8_t *bd = (uint8_t *)b.data();
         for (size_t i = 0; i < a.size() && i < b.size(); ++i) {
             if (ad[i] != bd[i]) {
                 if (ad[i] == '/')

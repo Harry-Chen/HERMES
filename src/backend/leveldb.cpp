@@ -189,8 +189,7 @@ write_result LDB::put_content(uint64_t id, size_t offset, const string_view &con
         } else {
             // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
             // Write entire chunk
-            const string_view chunk_view =
-                content.substr(blkoff - offset, DB_CHUNK_SIZE);
+            const string_view chunk_view = content.substr(blkoff - offset, DB_CHUNK_SIZE);
 
             // cout<<">> BACKEND: Data: "<<chunk_view<<endl;
             this->content->Put(leveldb::WriteOptions(), key,
@@ -229,8 +228,7 @@ void LDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
 
         // Detect holes
         if (offset + (ptr - buf) < blkoff) {
-            if(blkoff - offset >= len)
-                break;
+            if (blkoff - offset >= len) break;
 
             memset(ptr, 0, blkoff - offset - (ptr - buf));
             ptr = buf + (blkoff - offset);

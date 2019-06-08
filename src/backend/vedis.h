@@ -5,28 +5,26 @@
 #ifndef HERMES_VEDIS_H
 #define HERMES_VEDIS_H
 
-#include "hermes.h"
 #include "backend/common.h"
+#include "hermes.h"
 
-#include <cstring>
-#include <cassert>
-#include <string>
-#include <iostream>
 #include <vedis/vedis.h>
+#include <cassert>
+#include <cstring>
+#include <iostream>
+#include <string>
 
 namespace hermes::backend {
 
-static inline auto split_parent(const std::string_view &path)
-{
+static inline auto split_parent(const std::string_view &path) {
     size_t pEnd = path.length() - 1;
-    if (path[pEnd] == '/')
-        --pEnd;
+    if (path[pEnd] == '/') --pEnd;
     size_t pos = path.find_last_of('/', pEnd);
     return make_pair(path.substr(0, (pos ? pos : 1)), path.substr(pos + 1, pEnd - pos));
 }
 
 class Vedis {
-public:
+   public:
     explicit Vedis(hermes::options);
     ~Vedis();
 
@@ -40,12 +38,11 @@ public:
     write_result remove_content(uint64_t id);
 
     template <typename F>
-    inline void iterate_directory(const std::string_view &path, F accessor)
-    {
+    inline void iterate_directory(const std::string_view &path, F accessor) {
         std::string dkey = "D";
         dkey += path;
 
-        //std::cout << "iterating " << path << std::endl;
+        // std::cout << "iterating " << path << std::endl;
 
         vedis_value *result, *entry;
         vedis_exec_fmt(this->metadata, "SMEMBERS %s", dkey.data());
@@ -55,11 +52,10 @@ public:
 
             std::string fullPath;
             fullPath += path;
-            if (fullPath[fullPath.length() - 1] != '/')
-                fullPath += "/";
+            if (fullPath[fullPath.length() - 1] != '/') fullPath += "/";
             fullPath += entryStr;
 
-            //std::cout << "iterated: " << fullPath << std::endl;
+            // std::cout << "iterated: " << fullPath << std::endl;
 
             hermes::metadata meta;
             vedis_int64 bufSize = sizeof(hermes::metadata);
@@ -69,13 +65,13 @@ public:
         }
     }
 
-private:
+   private:
     vedis *metadata;
     vedis *content;
 
     uint64_t counter;
 };
 
-}   // namespace hermes::backend
+}  // namespace hermes::backend
 
-#endif //HERMES_VEDIS_H
+#endif  // HERMES_VEDIS_H
