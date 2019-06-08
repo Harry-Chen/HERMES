@@ -53,11 +53,15 @@ class BDB {
         Dbc *dbc = nullptr;
         metadata->cursor(nullptr, &dbc, 0);
         Dbt pathKey((void *)path.data(), path.size());
+        pathKey.set_flags(DB_DBT_MALLOC);
         Dbt pathData;
+        pathData.set_flags(DB_DBT_MALLOC);
         dbc->get(&pathKey, &pathData, DB_SET);
 
         Dbt key;
+        key.set_flags(DB_DBT_MALLOC);
         Dbt value;
+        value.set_flags(DB_DBT_MALLOC);
         if (path != "/") {
             dbc->get(&key, &value, DB_NEXT);
         } else {
