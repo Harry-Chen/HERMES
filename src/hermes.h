@@ -156,6 +156,8 @@ namespace impl {
 
     int unlink(const char *path);
 
+    int symlink(const char *path, const char *to);
+
     int rename(const char *from, const char *to);
 
     int chmod(const char *path, mode_t mode);
@@ -179,6 +181,8 @@ namespace impl {
 
     int readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
                 struct fuse_file_info *fi);
+
+    int readlink(const char *path, char *buf, size_t size);
 }  // namespace impl
 }  // namespace hermes
 

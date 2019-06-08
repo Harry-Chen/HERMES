@@ -20,8 +20,8 @@
 namespace hermes::backend {
 class PathComparator : public leveldb::Comparator {
     int Compare(const leveldb::Slice &a, const leveldb::Slice &b) const {
-        auto ad = a.data();
-        auto bd = b.data();
+        uint8_t *ad = (uint8_t*) a.data();
+        uint8_t *bd = (uint8_t*) b.data();
         for (size_t i = 0; i < a.size() && i < b.size(); ++i) {
             if (ad[i] != bd[i]) {
                 if (ad[i] == '/')
@@ -109,7 +109,7 @@ class LDB {
             if (mptr->is_dir()) {
                 // Skip the entire subdirectory
                 std::string slug(view);
-                slug.append("/\x7F");
+                slug.append("/\xFF");
                 // std::cout<<"Jumping to "<<slug<<std::endl;
                 it->Seek(slug);
             } else {
