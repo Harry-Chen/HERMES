@@ -11,7 +11,7 @@
 #define _ROCKS_DB_
 #undef __BACKEND_LEVELDB_h__
 #include "leveldb.h"
-#undef _ROCKS_DB
+#undef _ROCKS_DB_
 
 #undef leveldb
 #undef LevelDB
@@ -20,6 +20,11 @@
 
 #else
 #include "leveldb.h"
+#endif
+
+#if false
+# make GitHub happy
+class do_not_recognize_me_as_c_header {};
 #endif
 
 #endif  // HERMES_ROCKSDB_H
