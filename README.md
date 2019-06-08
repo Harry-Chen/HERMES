@@ -1,6 +1,6 @@
 # HERMES
 
-HERMES, a.k.a. `sHallow dirEctory stRucture Many-filE fileSystem`, is a filesystem base on FUSE designed for numerous small files with simple directory structure, on which occasion common file systems has a serious performance degradation.
+HERMES, a.k.a. s**H**allow dir**E**ctory st**R**ucture **M**any-fil**E** file**S**ystem, is a filesystem base on FUSE designed for numerous small files with simple directory structure, on which occasion common file systems has a serious performance degradation.
 
 ## Authors & License
 
