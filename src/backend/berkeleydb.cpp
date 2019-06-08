@@ -87,6 +87,7 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
 
     std::string strbeid, key;
     std::string original;
+    uint8_t buffer[DB_CHUNK_SIZE];
 
     for (uint64_t blkoff = fromOffset; blkoff < offset + content.size(); blkoff += DB_CHUNK_SIZE) {
         uint64_t beid = htobe64(id);
@@ -102,14 +103,15 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
             db_key.set_ulen(key.size());
             db_key.set_flags(DB_DBT_USERMEM);
             Dbt db_value;
-            db_value.set_flags(DB_DBT_MALLOC);
+            db_value.set_data(buffer);
+            db_value.set_ulen(DB_CHUNK_SIZE);
+            db_value.set_flags(DB_DBT_USERMEM);
             if (!this->content->get(nullptr, &db_key, &db_value, 0)) {
                 // Holes? we don't want that
                 original = "";
             } else {
                 original.assign((char *)db_value.get_data(), db_value.get_size());
             }
-            free(db_value.get_data());
 
             size_t len = DB_CHUNK_SIZE - (offset - blkoff);
             if (len > content.size()) len = content.size();
@@ -127,13 +129,14 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
             db_key.set_ulen(key.size());
             db_key.set_flags(DB_DBT_USERMEM);
             Dbt db_value;
-            db_value.set_flags(DB_DBT_MALLOC);
+            db_value.set_data(buffer);
+            db_value.set_ulen(DB_CHUNK_SIZE);
+            db_value.set_flags(DB_DBT_USERMEM);
             if (!this->content->get(nullptr, &db_key, &db_value, 0)) {
                 original = "";
             } else {
                 original.assign((char *)db_value.get_data(), db_value.get_size());
             }
-            free(db_value.get_data());
 
             size_t len = content.size() + offset - blkoff;
             if (original.size() < len) {
@@ -179,21 +182,26 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
     Dbc *dbc = nullptr;
     content->cursor(nullptr, &dbc, 0);
 
-    Dbt seekKey((void *)key.data(), key.size());
-    seekKey.set_flags(DB_DBT_MALLOC);
+    uint8_t keyBuffer[2 * sizeof(uint64_t)];
+    uint8_t dataBuffer[DB_CHUNK_SIZE];
+    memcpy(keyBuffer, key.data(), key.size());
+
+    Dbt seekKey(keyBuffer, 2 * sizeof(uint64_t));
+    seekKey.set_ulen(2 * sizeof(uint64_t));
+    seekKey.set_flags(DB_DBT_USERMEM);
     Dbt seekData;
-    seekData.set_flags(DB_DBT_MALLOC);
+    seekData.set_data(dataBuffer);
+    seekData.set_ulen(DB_CHUNK_SIZE);
+    seekData.set_flags(DB_DBT_USERMEM);
     dbc->get(&seekKey, &seekData, DB_SET_RANGE);
 
     Dbt dbKey = seekKey;
     Dbt dbValue = seekData;
-    dbKey.set_flags(DB_DBT_REALLOC);
-    dbValue.set_flags(DB_DBT_REALLOC);
 
     do {
         uint64_t cid = be64toh(*reinterpret_cast<const uint64_t *>(dbKey.get_data()));
         uint64_t blkoff =
-            be64toh(*reinterpret_cast<const uint64_t *>((char *)dbKey.get_data() + 8));
+            be64toh(*reinterpret_cast<const uint64_t *>((char *)dbKey.get_data() + sizeof(uint64_t)));
 
         // cout<<">> BACKEND: Read chunk: "<<cid<<" @ "<<blkoff<<endl;
         // cout<<">> BACKEND: Already read: "<<result.size()<<endl;
@@ -228,8 +236,6 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
         if ((ptr - buf) == len) break;
     } while (dbc->get(&dbKey, &dbValue, DB_NEXT) == 0);
     dbc->close();
-    free(dbKey.get_data());
-    free(dbValue.get_data());
 
     if (ptr - buf < len) memset(ptr, 0, len - (ptr - buf));
 }
