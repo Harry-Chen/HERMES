@@ -7,12 +7,12 @@
 
 #include "hermes.h"
 #include "backend/common.h"
-#include "vedis/vedis.h"
 
 #include <cstring>
 #include <cassert>
 #include <string>
 #include <iostream>
+#include <vedis/vedis.h>
 
 namespace hermes::backend {
 

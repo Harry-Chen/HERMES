@@ -12,7 +12,7 @@ This project is an assignment of `Basics of Stroage Technology` course, Spring 2
 * `gcc` >= 5.0
 * `CMake` >= 2.8
 
-#### Backends
+### Backends
 
 HERMES supports several key-value databases as its backend, and you can choose one when configuring cmake project. 
 LevelDB will be used as the default backend if you do not specify one. According to your choice, HERMES would depends on one of:
@@ -43,25 +43,20 @@ Besides common `fuse` options, filesystem-specific options are:
 ```
 
 Note that different backends requires different types `metadev` and `filedev`.
-LevelDB and RocksDB needs directories, while Vedis needs files.
+LevelDB and RocksDB need directories, while BerkeleyDB and Vedis need files.
 
 You can use `--help` to see the complete help text and `--version` to see the compilation time and backend version of HERMES.
 
+## Tests
+
+There are several tests in `tests` directory:
+
+* `read_write_perf.sh`: Test the read & write performance of different backends.
+* `file_list_perf.sh`: Test the performance of file creation & enumeration of different backends.
+* `test_correctness.sh`: Test the implementation correctness of different backends.
+
+The first two tests requires `fio` to run, and will generate reports in `results` directory.
+
 ## Implementation
 
-### Storing Policy
-
-`HERMES` use a key-value store as its backend.
-All items in the file system are mapped to two key-value pairs, respectively its metadata and content.
-
-#### Files
-
-Note that some types of file, including hard link, device, or pipe are not supported.
-
-#### Directories
-
-To be done
-
-### Internal Data Structure
-
-To be done
+Refer to `doc/report.pdf` for more details (in Chinese).
