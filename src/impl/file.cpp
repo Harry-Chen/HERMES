@@ -338,7 +338,7 @@ int symlink(const char *path, const char *to) {
         .mode = (mode_t)(0 | S_IFLNK),
         .uid = fctx->uid,
         .gid = fctx->gid,
-        .size = path_view.size(),
+        .size = static_cast<off_t>(path_view.size()),
         .atim = now,
         .mtim = now,
         .ctim = now,
