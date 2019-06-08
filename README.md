@@ -2,6 +2,15 @@
 
 HERMES, a.k.a. `sHallow dirEctory stRucture Many-filE fileSystem`, is a filesystem base on FUSE designed for numerous small files with simple directory structure, on which occasion common file systems has a serious performance degradation.
 
+## Authors & License
+
+The authors of `HERMES` are listed below:
+
+* [Shengqi Chen](https://github.com/Harry-Chen)
+* [Jiajie Chen](https://github.com/jiegec)
+* [Xiaoyi Liu](https://github.com/CircuitCoder)
+* [Jian Gao](https://github.com/IcicleF)
+
 This project is an assignment of `Basics of Stroage Technology` course, Spring 2019, Tsinghua University. All code created by the authors is licensed under the MIT license, while open source code used in this project is subjected to their own licenses.
 
 ## Dependencies
