@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <string>
 
-const char *COUNTER_KEY = "\xca\xfe";
+char COUNTER_KEY[] = "\xca\xfe";
 const size_t DB_CHUNK_SIZE = 4096;
 const size_t DB_METADATA_CACHE = 64 * 1024;
 const size_t DB_CONTENT_CACHE = 128 * 1024 * 1024;
@@ -39,21 +39,27 @@ BDB::BDB(hermes::options opts) {
     mkdir(opts.metadev, 0755);
     metadataEnv = new DbEnv((int)0);
     metadataEnv->set_cachesize(0, DB_METADATA_CACHE, 1);
-    metadataEnv->open(opts.metadev, DB_CREATE | DB_INIT_MPOOL, 0755);
+    metadataEnv->open(
+        opts.metadev,
+        DB_CREATE | DB_INIT_MPOOL | DB_THREAD, 0755);
     metadata = new Db(metadataEnv, 0);
 
     mkdir(opts.filedev, 0755);
     contentEnv = new DbEnv((int)0);
     contentEnv->set_cachesize(0, DB_CONTENT_CACHE, 1);
-    contentEnv->open(opts.filedev, DB_CREATE | DB_INIT_MPOOL, 0755);
+    contentEnv->open(
+        opts.filedev,
+        DB_CREATE | DB_INIT_MPOOL | DB_THREAD, 0755);
     content = new Db(contentEnv, 0);
 
     metadata->set_bt_compare(compare_path);
 
-    metadata->open(nullptr, "meta", "hermes", DB_BTREE, DB_CREATE, 0755);
-    content->open(nullptr, "content", "hermes", DB_BTREE, DB_CREATE, 0755);
+    metadata->open(nullptr, "meta", "hermes", DB_BTREE, DB_CREATE | DB_THREAD, 0755);
+    content->open(nullptr, "content", "hermes", DB_BTREE, DB_CREATE | DB_THREAD, 0755);
 
     Dbt key((void *)COUNTER_KEY, strlen(COUNTER_KEY));
+    key.set_ulen(sizeof(counter));
+    key.set_flags(DB_DBT_USERMEM);
     Dbt data;
     data.set_data((void *)&counter);
     data.set_ulen(sizeof(counter));
@@ -93,13 +99,17 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
         if (blkoff < offset) {
             // Writing from middle
             Dbt db_key(key.data(), key.size());
+            db_key.set_ulen(key.size());
+            db_key.set_flags(DB_DBT_USERMEM);
             Dbt db_value;
+            db_value.set_flags(DB_DBT_MALLOC);
             if (!this->content->get(nullptr, &db_key, &db_value, 0)) {
                 // Holes? we don't want that
                 original = "";
             } else {
                 original.assign((char *)db_value.get_data(), db_value.get_size());
             }
+            free(db_value.get_data());
 
             size_t len = DB_CHUNK_SIZE - (offset - blkoff);
             if (len > content.size()) len = content.size();
@@ -114,12 +124,16 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
         } else if (blkoff + DB_CHUNK_SIZE > offset + content.size()) {
             // Write into head
             Dbt db_key(key.data(), key.size());
+            db_key.set_ulen(key.size());
+            db_key.set_flags(DB_DBT_USERMEM);
             Dbt db_value;
+            db_value.set_flags(DB_DBT_MALLOC);
             if (!this->content->get(nullptr, &db_key, &db_value, 0)) {
                 original = "";
             } else {
                 original.assign((char *)db_value.get_data(), db_value.get_size());
             }
+            free(db_value.get_data());
 
             size_t len = content.size() + offset - blkoff;
             if (original.size() < len) {
@@ -137,8 +151,7 @@ write_result BDB::put_content(uint64_t id, size_t offset, const std::string_view
         } else {
             // cout<<">> BACKEND: Put last chunk: "<<id<<" @ "<<blkoff<<endl;
             // Write entire chunk
-            const std::string_view chunk_view =
-                content.substr(blkoff - offset, DB_CHUNK_SIZE);
+            const std::string_view chunk_view = content.substr(blkoff - offset, DB_CHUNK_SIZE);
 
             Dbt insert_key(key.data(), key.size());
             Dbt insert_value((void *)chunk_view.data(), chunk_view.size());
@@ -167,11 +180,15 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
     content->cursor(nullptr, &dbc, 0);
 
     Dbt seekKey((void *)key.data(), key.size());
+    seekKey.set_flags(DB_DBT_MALLOC);
     Dbt seekData;
+    seekData.set_flags(DB_DBT_MALLOC);
     dbc->get(&seekKey, &seekData, DB_SET_RANGE);
 
     Dbt dbKey = seekKey;
     Dbt dbValue = seekData;
+    dbKey.set_flags(DB_DBT_REALLOC);
+    dbValue.set_flags(DB_DBT_REALLOC);
 
     do {
         uint64_t cid = be64toh(*reinterpret_cast<const uint64_t *>(dbKey.get_data()));
@@ -211,6 +228,8 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
         if ((ptr - buf) == len) break;
     } while (dbc->get(&dbKey, &dbValue, DB_NEXT) == 0);
     dbc->close();
+    free(dbKey.get_data());
+    free(dbValue.get_data());
 
     if (ptr - buf < len) memset(ptr, 0, len - (ptr - buf));
 }
@@ -226,13 +245,17 @@ write_result BDB::put_metadata(const std::string_view &path, const hermes::metad
 }
 std::optional<hermes::metadata> BDB::fetch_metadata(const std::string_view &path) {
     Dbt key((void *)path.data(), path.size());
+    key.set_ulen(path.size());
+    key.set_flags(DB_DBT_USERMEM);
+    hermes::metadata result = {};
     Dbt value;
+    value.set_data((void *)&result);
+    value.set_ulen(sizeof(hermes::metadata));
+    value.set_flags(DB_DBT_USERMEM);
 
     if (metadata->get(nullptr, &key, &value, 0) == DB_NOTFOUND) {
         return {};
     } else {
-        hermes::metadata result;
-        memcpy(&result, value.get_data(), value.get_size());
         return {result};
     }
 }
