@@ -22,8 +22,8 @@
 #include "leveldb.h"
 #endif
 
-#if false
-# make GitHub happy
+#if 0
+// make GitHub happy
 class do_not_recognize_me_as_c_header {};
 #endif
 
