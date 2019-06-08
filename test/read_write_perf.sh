@@ -38,12 +38,13 @@ do
 		do
 			if [ ${BACKEND} != 'EXT4' ] ;then
 				mount_hermes ${HERMES} ${MOUNT_DIR}
-                sleep 3
+				# no hurry...
+				sleep 3
 			fi
 			
 			# run benchmark and save results
 			cd ${MOUNT_DIR}
-			env BS=${BS} fio --group_reporting ../${FIO_TEST}.fio | tee ../results/${BACKEND}_${FIO_TEST}_${BS}.txt
+			env BS=${BS} fio ../${FIO_TEST}.fio | tee ../results/${BACKEND}_${FIO_TEST}_${BS}.txt
 			cd ..
 			
 			if [ ${BACKEND} != 'EXT4' ] ;then

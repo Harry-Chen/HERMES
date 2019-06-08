@@ -17,7 +17,7 @@ mount_hermes() {
 
 mkdir -p results
 
-c++ -o fast_create fast_create.cpp
+g++ -O3 -o fast_create fast_create.cpp
 
 for BACKEND in 'EXT4' 'LevelDB' 'RocksDB' 'BerkeleyDB'
 do
@@ -38,14 +38,18 @@ do
 	do
 		if [ ${BACKEND} != 'EXT4' ] ;then
 			mount_hermes ${HERMES} ${MOUNT_DIR}
-            sleep 3
+			# no hurry...
+			sleep 3
 		fi
 
 		# run benchmark and save results
 		cd ${MOUNT_DIR}
 		RESULT_FILE=../results/${BACKEND}_create-file_${FILES}.txt
-        echo "Create files cost:" > ${RESULT_FILE}
-        { time ../fast_create $FILES; } 2>> ${RESULT_FILE}
+		
+		# create files
+		echo "Create files cost:" > ${RESULT_FILE}
+		{ time ../fast_create $FILES; } 2>> ${RESULT_FILE}
+		# list files
 		echo "List files cost:" >> ${RESULT_FILE}
 		{ time ls -f; } > /dev/null 2>> ${RESULT_FILE}
 		cd ..
