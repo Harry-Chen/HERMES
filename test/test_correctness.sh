@@ -1,35 +1,55 @@
-#!/bin/sh
-rm -rf test_file
-rm -rf test_meta
-mkdir -p mount
-./HERMES --filedev=test_file --metadev=test_meta -f ./mount -d -o debug 2>log.txt &
-ID=$!
-sleep 1
-mount | tail -n 3
+#!/bin/bash
 
-dd if=/dev/urandom of=test_random count=1000 2>/dev/null
-echo "Expected:"
-sha1sum test_random
-cp test_random mount/
-echo "Actual:"
-sha1sum mount/test_random
+MOUNT_DIR=mount
 
-dd if=/dev/urandom of=test_random count=100 2>/dev/null
-echo "Expected:"
-sha1sum test_random
-cp test_random mount/
-echo "Actual:"
-sha1sum mount/test_random
+mount_hermes() {
+	MOUNT_DIR=$2
+	echo "Mounting HERMES on ${MOUNT_DIR}"
+	rm -rf ${MOUNT_DIR}
+	mkdir -p ${MOUNT_DIR}
+	
+	TEST_PATH="/dev/shm/HERMES_test"
+	rm -rf ${TEST_PATH}
+	mkdir -p ${TEST_PATH}
+	
+	HERMES=$1
+	${HERMES} -f --metadev=${TEST_PATH}/meta --filedev=${TEST_PATH}/file ${MOUNT_DIR} &
+	HERMES_PID=$!
+}
 
-dd if=/dev/zero of=test_zero count=1000 2>/dev/null
-echo "Expected:"
-sha1sum test_zero
-cp test_zero mount/
-echo "Actual:"
-sha1sum mount/test_zero
+rm -rf ${MOUNT_DIR}
+mkdir -p ${MOUNT_DIR}
 
-dd if=/dev/zero bs=4M count=16 | pv | dd of=mount/zero_file
+for BACKEND in 'EXT4' 'LevelDB' 'RocksDB' 'BerkeleyDB' 'Vedis'
+do
+	if [ ${BACKEND} != 'EXT4' ] ;then
+		rm -rf backend/${BACKEND}
+		mkdir -p backend/${BACKEND}
+		cd backend/${BACKEND}
+		env CXX=clang++ cmake ../../../ -DBACKEND=${BACKEND}
+		make -j16
+		cd ../../
+		HERMES=backend/${BACKEND}/HERMES
+		echo "Use executable: ${HERMES}"
+	fi
 
-kill $ID
+    if [ ${BACKEND} != 'EXT4' ] ;then
+        mount_hermes ${HERMES} ${MOUNT_DIR}
+        # no hurry...
+        sleep 3
+    fi
 
-ls -al mount/
+    cd ${MOUNT_DIR}
+
+    echo "Testing: ${BACKEND}"
+    ../test_correctness_single.sh
+
+    cd ..
+    
+    if [ ${BACKEND} != 'EXT4' ] ;then
+        kill -s SIGTERM ${HERMES_PID}
+    fi
+    
+    sleep 3
+done
+

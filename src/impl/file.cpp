@@ -5,8 +5,8 @@
 #include <cstring>
 
 #include <chrono>
-#include <unordered_map>
 #include <shared_mutex>
+#include <unordered_map>
 
 using namespace std;
 
@@ -90,7 +90,6 @@ int open(const char *path, struct fuse_file_info *fi) {
 
     auto resp = ctx->backend->fetch_metadata(path);
 
-    // TODO: do we need to follow symbolic links here?
     if (!resp) {
         return -ENOENT;
     } else if (!resp->is_file()) {
@@ -169,7 +168,6 @@ int write(const char *path, const char *buf, size_t size, off_t offset, struct f
 }
 
 int release(const char *path, struct fuse_file_info *fi) {
-
     auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
 
     auto mtresp = ctx->backend->fetch_metadata(path);
@@ -189,9 +187,8 @@ int release(const char *path, struct fuse_file_info *fi) {
     if (saved_size == pending_size.end()) return 0;
 
     mtresp->size = saved_size->second;
-    // We are not erasing the saved_size from cache, since we will have to reload it again in future.
-    // Then we are able to use shared_lock here
-    // pending_size.erase(saved_size);
+    // We are not erasing the saved_size from cache, since we will have to reload it again in
+    // future. Then we are able to use shared_lock here pending_size.erase(saved_size);
 
     ctx->backend->put_metadata(path, *mtresp);
     // cout<<"Write"<<endl;
@@ -219,14 +216,13 @@ int create(const char *path, mode_t mode, struct fuse_file_info *fi) {
         .ctim = now,
     };
 
-    // TODO: lock
     // TODO: check permission and deal with errors
-    unique_lock lock(size_mutex);
     ctx->backend->put_metadata(path, mt);
-    lock.unlock();
-
     fi->fh = mt.id;
+
+    unique_lock lock(size_mutex);
     pending_size[mt.id] = 0;
+    lock.unlock();
 
     // auto after = std::chrono::high_resolution_clock::now();
     // auto diff = after - before;
@@ -308,4 +304,51 @@ int rename(const char *from, const char *to) {
 
     return 0;
 }
+
+int readlink(const char *path, char *buf, size_t size) {
+    auto ctx = static_cast<hermes::impl::context *>(fuse_get_context()->private_data);
+
+    auto resp = ctx->backend->fetch_metadata(path);
+
+    if (!resp) {
+        return -ENOENT;
+    } else if (!resp->is_symlink()) {
+        return -EINVAL;
+    }
+
+    size_t read_size = size - 1;
+    if (read_size > resp->size) read_size = resp->size;
+    ctx->backend->fetch_content(resp->id, 0, read_size, buf);
+    buf[read_size] = 0;
+    return 0;
+}
+
+int symlink(const char *path, const char *to) {
+    auto fctx = fuse_get_context();
+    auto ctx = static_cast<hermes::impl::context *>(fctx->private_data);
+    if (ctx->backend->fetch_metadata(to)) return -EEXIST;
+
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+
+    string_view path_view(path);
+
+    hermes::metadata mt = {
+        .id = ctx->backend->next_id(),
+        .mode = (mode_t)(0 | S_IFLNK),
+        .uid = fctx->uid,
+        .gid = fctx->gid,
+        .size = static_cast<off_t>(path_view.size()),
+        .atim = now,
+        .mtim = now,
+        .ctim = now,
+    };
+
+    // TODO: check permission and deal with errors
+    ctx->backend->put_metadata(to, mt);
+    ctx->backend->put_content(mt.id, 0, path_view);
+
+    return 0;
+}
+
 }  // namespace hermes::impl

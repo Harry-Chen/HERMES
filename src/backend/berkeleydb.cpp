@@ -39,17 +39,13 @@ BDB::BDB(hermes::options opts) {
     mkdir(opts.metadev, 0755);
     metadataEnv = new DbEnv((int)0);
     metadataEnv->set_cachesize(0, DB_METADATA_CACHE, 1);
-    metadataEnv->open(
-        opts.metadev,
-        DB_CREATE | DB_INIT_MPOOL | DB_THREAD, 0755);
+    metadataEnv->open(opts.metadev, DB_CREATE | DB_INIT_MPOOL | DB_THREAD, 0755);
     metadata = new Db(metadataEnv, 0);
 
     mkdir(opts.filedev, 0755);
     contentEnv = new DbEnv((int)0);
     contentEnv->set_cachesize(0, DB_CONTENT_CACHE, 1);
-    contentEnv->open(
-        opts.filedev,
-        DB_CREATE | DB_INIT_MPOOL | DB_THREAD, 0755);
+    contentEnv->open(opts.filedev, DB_CREATE | DB_INIT_MPOOL | DB_THREAD, 0755);
     content = new Db(contentEnv, 0);
 
     metadata->set_bt_compare(compare_path);
@@ -200,8 +196,8 @@ void BDB::fetch_content(uint64_t id, size_t offset, size_t len, char *buf) {
 
     do {
         uint64_t cid = be64toh(*reinterpret_cast<const uint64_t *>(dbKey.get_data()));
-        uint64_t blkoff =
-            be64toh(*reinterpret_cast<const uint64_t *>((char *)dbKey.get_data() + sizeof(uint64_t)));
+        uint64_t blkoff = be64toh(
+            *reinterpret_cast<const uint64_t *>((char *)dbKey.get_data() + sizeof(uint64_t)));
 
         // cout<<">> BACKEND: Read chunk: "<<cid<<" @ "<<blkoff<<endl;
         // cout<<">> BACKEND: Already read: "<<result.size()<<endl;

@@ -67,7 +67,8 @@ class BDB {
         } else {
             dbc->get(&key, &value, DB_FIRST);
         }
-        do {
+        std::string slug;
+        while (value.get_data() != nullptr) {
             std::string_view view((char *)key.get_data(), key.get_size());
             if (view.size() <= path.size() || view.compare(0, path.size(), path) != 0) break;
 
@@ -79,14 +80,22 @@ class BDB {
 
             if (mptr->is_dir()) {
                 // Skip the entire subdirectory
-                std::string slug(view);
+                slug = view;
                 slug.append("/\x7F");
                 Dbt slugKey((void *)slug.data(), slug.size());
+                slugKey.set_flags(DB_DBT_MALLOC);
                 Dbt slugData;
+                slugData.set_flags(DB_DBT_MALLOC);
                 dbc->get(&slugKey, &slugData, DB_SET_RANGE);
+
+                key = slugKey;
+                value = slugData;
                 continue;
             }
-        } while (dbc->get(&key, &value, DB_NEXT) == 0);
+            if (dbc->get(&key, &value, DB_NEXT) != 0) {
+                break;
+            }
+        };
         dbc->close();
     }
 
