@@ -68,4 +68,4 @@ The first two tests requires `fio` to run, and will generate reports in `results
 
 ## Implementation
 
-Refer to `doc/report.pdf` for more details (in Chinese).
+You may refer to `doc/report.pdf` for more details (in Chinese).
