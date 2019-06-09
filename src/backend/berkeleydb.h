@@ -70,7 +70,6 @@ class BDB {
         std::string slug;
         while (value.get_data() != nullptr) {
             std::string_view view((char *)key.get_data(), key.get_size());
-            std::cerr << view << std::endl;
             if (view.size() <= path.size() || view.compare(0, path.size(), path) != 0) break;
 
             if (path != "/" && view[path.size()] != '/') break;
